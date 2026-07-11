@@ -5,15 +5,13 @@ export default {
   description: 'Busca personas por Nombres y Apellidos',
   exec: async ({ sock, from, msg, args }) => {
     
-    // En tu bot, los textos vienen en un array llamado "args". 
-    // Los unimos para tener todo el string y poder separarlo luego por el palito "|".
     const text = args.join(' ')
 
     // Verificar si el usuario ingresó texto
     if (!text) {
       return sock.sendMessage(
         from,
-        { text: '❌ *Uso incorrecto.*\nPor favor, ingresa los nombres y apellidos separados por "|".\n\n*Ejemplo:*\n.nm Alexander Paul|Huaman|Ramos' },
+        { text: '❌ *Uso incorrecto.*\nPor favor, ingresa los nombres y apellidos separados por "|".\n\n*Ejemplo:*\n.nm Alexander|Huaman|Ramos' },
         { quoted: msg }
       )
     }
@@ -25,19 +23,27 @@ export default {
     if (!n1 || !ap1 || !ap2) {
       return sock.sendMessage(
         from,
-        { text: '⚠️ *Formato incompleto.*\nAsegúrate de incluir Nombre, Apellido Paterno y Apellido Materno separados por el carácter "|".\n\n*Ejemplo:*\n.nm Alexander Paul|Huaman|Ramos' },
+        { text: '⚠️ *Formato incompleto.*\nAsegúrate de incluir Nombre, Apellido Paterno y Apellido Materno separados por el carácter "|".\n\n*Ejemplo:*\n.nm Alexander|Huaman|Ramos' },
         { quoted: msg }
       )
     }
 
+    // 💡 EL TRUCO ESTÁ AQUÍ 💡
+    // Extraemos solo la PRIMERA palabra del nombre.
+    // Si ponen "Alexander Paul" o "Alexander,Paul", el bot solo tomará "Alexander"
+    let soloPrimerNombre = n1.trim().split(/[\s,]+/)[0] 
+    let apellidoPaterno = ap1.trim()
+    let apellidoMaterno = ap2.trim()
+
     // Tu token directo
     const token = 'jmdCRmBLZ13ITSmUGCWcBnDcTuOddttU7d0UbL8S7HJNelk8loSpnVkUyFJO'
-    const url = `https://api-codart.cgrt.org/api/v1/consultas/fd/nm?n1=${encodeURIComponent(n1.trim())}&ap1=${encodeURIComponent(ap1.trim())}&ap2=${encodeURIComponent(ap2.trim())}`
+    
+    // Inyectamos el nombre ya limpio a la URL
+    const url = `https://api-codart.cgrt.org/api/v1/consultas/fd/nm?n1=${encodeURIComponent(soloPrimerNombre)}&ap1=${encodeURIComponent(apellidoPaterno)}&ap2=${encodeURIComponent(apellidoMaterno)}`
 
     try {
       await sock.sendMessage(from, { text: '⏳ Consultando a la base de datos...' }, { quoted: msg })
 
-      // Petición a la API usando la misma lógica que tu archivo DNI
       const { data: response } = await axios.get(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -61,7 +67,7 @@ export default {
       if (cantidad === 0 || resultados.length === 0) {
         return sock.sendMessage(
           from,
-          { text: `ℹ️ No se encontró ninguna persona con esos datos: ${n1.trim()} ${ap1.trim()} ${ap2.trim()}` },
+          { text: `ℹ️ No se encontró ninguna persona con los datos: ${soloPrimerNombre} ${apellidoPaterno} ${apellidoMaterno}` },
           { quoted: msg }
         )
       }
@@ -78,14 +84,17 @@ export default {
         mensaje += `─────────────────\n`
       })
 
-      // Enviar el resultado final usando sock.sendMessage (formato del framework)
       await sock.sendMessage(from, { text: mensaje.trim() }, { quoted: msg })
 
     } catch (err) {
+      // Manejo de errores detallado por si la API sigue quejándose
+      const errorDeApi = err?.response?.data?.message || err?.response?.data?.errors?.n1?.[0] || 'Ocurrió un error inesperado al realizar la consulta.'
+      
       console.error('Error en el comando nm:', err?.response?.data || err.message)
+      
       await sock.sendMessage(
         from,
-        { text: '❌ Ocurrió un error inesperado al realizar la consulta.' },
+        { text: `❌ *Error en la consulta:*\n${errorDeApi}\n\n💡 *Sugerencia:* Revisa que no haya símbolos extraños.` },
         { quoted: msg }
       )
     }
