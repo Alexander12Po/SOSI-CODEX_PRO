@@ -2,6 +2,6 @@ export const botConfig = {
   botName: 'SOSI CODEX',
   prefix: '.',
   ownerNumber: '521234567890', // 👈 cambia esto por tu número con código de país, sin +
-  menuImage: './media/sosicodez.png', // 👈 imagen que se muestra en el menú
+  menuImage: 'https://files.catbox.moe/vuv153.png',
   loginMethod: 'qr' // 👈 'qr' o 'pairing'
 }
