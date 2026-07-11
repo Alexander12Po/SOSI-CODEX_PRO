@@ -148,4 +148,4 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
     console.error(`Error ejecutando "${cmdName}":`, err);
     await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
   }
-        }
+}
