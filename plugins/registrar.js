@@ -1,17 +1,38 @@
 import fs from 'fs';
+import { botConfig } from '../config.js';
+
+function normalizarJid(jid) {
+  return jid.split(':')[0] + '@s.whatsapp.net';
+}
 
 export default {
   command: ['registrar'],
   description: 'Regístrate en el bot: .registrar nombre|password',
   exec: async ({ sock, from, msg, args, sender }) => {
     const input = args.join(' ').split('|');
-    if (input.length < 2) return sock.sendMessage(from, { text: 'Uso correcto: .registrar nombre|password' });
+
+    if (input.length < 2) {
+      return sock.sendMessage(from, {
+        text: `╔═══❌ *REGISTRO INCOMPLETO* ❌═══
+║
+║ 📝 *Uso correcto:*
+║ ${botConfig.prefix}registrar nombre|password
+║
+║ 📌 *Ejemplo:*
+║ ${botConfig.prefix}registrar Carlos|12345
+║
+╚══════════════════════╝`
+      }, { quoted: msg });
+    }
 
     const [nombre, password] = input;
-    const userId = sender;
+    const userId = normalizarJid(sender);
     let users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}');
 
-    if (users[userId]) return sock.sendMessage(from, { text: '❌ Ya estás registrado.' });
+    if (users[userId]) {
+      const numeroLimpio = userId.split('@')[0];
+      return sock.sendMessage(from, { text: `❌ Ya estás registrado con el número *${numeroLimpio}*.` }, { quoted: msg });
+    }
 
     const fechaRegistro = new Date().toLocaleDateString('es-PE');
     users[userId] = {
