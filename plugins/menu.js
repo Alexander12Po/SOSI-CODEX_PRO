@@ -18,41 +18,46 @@ function formatUptime(ms) {
   return `${s}s`
 }
 
+// Evita que nombres con símbolos/decoraciones raras rompan el diseño del menú
+function limpiarNombre(nombre) {
+  if (!nombre) return 'Usuario'
+  const primeraPalabra = nombre.trim().split(/\s+/)[0]
+  return primeraPalabra.length > 0 ? primeraPalabra : 'Usuario'
+}
+
 export default {
   command: ['menu', 'help'],
   description: 'Muestra el menú de comandos',
   exec: async ({ sock, from, msg }) => {
     const { getUniquePlugins } = await import('../handler.js')
-    const pushName = msg.pushName || 'Usuario'
+    const nombre = limpiarNombre(msg.pushName)
     const uptime = formatUptime(Date.now() - startTime)
+    const version = botConfig.version || '1.0.0'
     const commandList = getUniquePlugins()
 
     const listaComandos = commandList
-      .map(p => `› *${botConfig.prefix}${p.command[0]}* — ${p.description}`)
+      .map(p => `✧ *${botConfig.prefix}${p.command[0]}*\n   ${p.description}`)
       .join('\n')
 
-    const caption = `🐱 *${botConfig.botName}* — v${botConfig.version}
+    const caption = `┏━❮ 🧑‍💻 *${botConfig.botName}* ❯━┓
+┃  Bot inteligente de consultas
+┃  v${version}
+┗━━━━━━━━━━━━━━━┛
 
-🤖 *SOSI-CODEX* | Bot inteligente de consultas. Obtén información de forma rápida y organizada mediante herramientas automatizadas. Diseñado para ofrecer respuestas precisas y una experiencia eficiente.
-
-────────────────────
+_Obtén información de forma rápida y organizada, con respuestas precisas y automatizadas._
 
 📌 *ESTADO*
-› Prefijo: *[ ${botConfig.prefix} ]*
-› Activo: *${uptime}*
-› Comandos disponibles: *${commandList.length}*
+▸ Usuario: ${nombre}
+▸ Prefijo: [ ${botConfig.prefix} ]
+▸ Activo: ${uptime}
+▸ Comandos: ${commandList.length}
 
-────────────────────
-
-📜 *LISTA DE COMANDOS*
+『 📜 COMANDOS 』
 
 ${listaComandos}
 
-────────────────────
-
-👤 Solicitado por: *${pushName}*
-🧠 Creado por: *${botConfig.botName}*
-© ${new Date().getFullYear()} — Todos los derechos reservados`
+▬▬▬▬▬▬▬▬▬▬▬▬
+🐾 *${botConfig.botName}* © ${new Date().getFullYear()}`
 
     const imagePath = path.join(__dirname, '..', botConfig.menuImage)
 
