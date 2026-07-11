@@ -1,10 +1,6 @@
 import fs from 'fs';
 import { botConfig } from '../config.js';
 
-function normalizarJid(jid) {
-  return jid.split(':')[0] + '@s.whatsapp.net';
-}
-
 export default {
   command: ['registrar'],
   description: 'Regístrate en el bot: .registrar nombre|password',
@@ -26,7 +22,7 @@ export default {
     }
 
     const [nombre, password] = input;
-    const userId = normalizarJid(sender);
+    const userId = sender; // ya viene normalizado desde handler.js
     let users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}');
 
     if (users[userId]) {
