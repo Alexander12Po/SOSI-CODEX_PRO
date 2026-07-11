@@ -1,0 +1,92 @@
+import 'dotenv/config'
+import {
+  makeWASocket,
+  useMultiFileAuthState,
+  fetchLatestWaWebVersion,
+  DisconnectReason
+} from '@whiskeysockets/baileys'
+import { Boom } from '@hapi/boom'
+import pino from 'pino'
+import readline from 'readline'
+import qrcode from 'qrcode-terminal'
+import { handler } from './handler.js'
+import { botConfig } from './config.js'
+
+const question = (text) => new Promise((resolve) => {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  rl.question(text, (answer) => {
+    rl.close()
+    resolve(answer)
+  })
+})
+
+async function startBot() {
+  const { state, saveCreds } = await useMultiFileAuthState('./session')
+
+  // 👇 Usamos fetchLatestWaWebVersion en vez de fetchLatestBaileysVersion:
+  // esta última tiene actualmente un bug conocido que devuelve una versión
+  // vieja de WhatsApp Web, lo que hace que la vinculación falle (error 428).
+  const { version } = await fetchLatestWaWebVersion()
+
+  const usePairing = botConfig.loginMethod === 'pairing'
+
+  const sock = makeWASocket({
+    version,
+    logger: pino({ level: 'silent' }),
+    auth: state,
+    browser: ['SOSI CODEX', 'Chrome', '1.0.0']
+  })
+
+  let pairingRequested = false
+  let phoneNumber = null
+
+  if (usePairing && !sock.authState.creds.registered) {
+    phoneNumber = (await question('Ingresa tu número con código de país (ej: 521234567890): ')).trim()
+  }
+
+  sock.ev.on('creds.update', saveCreds)
+
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect, qr } = update
+
+    // Método QR
+    if (!usePairing && qr) {
+      console.log('📲 Escanea este código QR con WhatsApp > Dispositivos vinculados:')
+      qrcode.generate(qr, { small: true })
+    }
+
+    // Método código de vinculación (se pide justo cuando el socket ya está listo)
+    if (usePairing && phoneNumber && !pairingRequested && (connection === 'connecting' || qr)) {
+      pairingRequested = true
+      try {
+        const code = await sock.requestPairingCode(phoneNumber)
+        console.log('╭───────────────────────╮')
+        console.log(`   🔑 Código: ${code}`)
+        console.log('╰───────────────────────╯')
+        console.log('Ve a WhatsApp > Dispositivos vinculados > Vincular con número de teléfono, e ingresa el código.')
+      } catch (err) {
+        console.log('❌ Error generando el código:', err.message || err)
+        pairingRequested = false
+      }
+    }
+
+    if (connection === 'close') {
+      const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut
+      console.log('❌ Conexión cerrada.', shouldReconnect ? 'Reconectando...' : 'Sesión cerrada, borra la carpeta session y vuelve a vincular.')
+      if (shouldReconnect) startBot()
+    } else if (connection === 'open') {
+      console.log(`✅ ${botConfig.botName} conectado correctamente`)
+    }
+  })
+
+  sock.ev.on('messages.upsert', async (m) => {
+    try {
+      await handler(sock, m)
+    } catch (err) {
+      console.error('Error en handler:', err)
+    }
+  })
+}
+
+startBot()
