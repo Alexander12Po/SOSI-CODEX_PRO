@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { botConfig } from '../config.js'
+import { costoPorComando } from '../costos.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -113,7 +114,15 @@ export default {
       if (!plugins || plugins.length === 0) continue
 
       const items = plugins
-        .map(p => `│ ✧ *${botConfig.prefix}${p.command[0]}*\n│    ${p.description}`)
+        .map(p => {
+          const cmdPrincipal = p.command[0]
+          const costo = costoPorComando.hasOwnProperty(cmdPrincipal) ? costoPorComando[cmdPrincipal] : null
+          let etiquetaCosto = ''
+          if (costo === 0) etiquetaCosto = ' 🆓 Gratis'
+          else if (costo !== null) etiquetaCosto = ` 💰 ${costo} crédito${costo === 1 ? '' : 's'}`
+
+          return `│ ✧ *${botConfig.prefix}${cmdPrincipal}*${etiquetaCosto}\n│    ${p.description}`
+        })
         .join('\n')
 
       const emoji = emojiCategoria[cat] || '📂'
