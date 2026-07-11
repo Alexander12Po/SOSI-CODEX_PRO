@@ -1,29 +1,58 @@
-  toimg: async (ctx) => {
-    const target = getQuotedOrDirectMessage(ctx);
-    const type = Object.keys(target.message || {})[0];
+import { downloadMediaMessage } from '@whiskeysockets/baileys'
+// Importamos la función de conversión (ajusta la ruta '../lib/sticker.js' si es diferente en tu bot)
+import { webpToImage } from '../lib/sticker.js' 
 
-    // Verificar que sea un sticker
-    if (type !== "stickerMessage") {
-      return ctx.reply("❌ *Error:* Por favor, responde a un sticker con el comando *.toimg*");
+export default {
+  command: ['ver', 'toimg'],
+  description: 'Convierte un sticker a imagen',
+  exec: async ({ sock, from, msg }) => {
+    // Buscar si el usuario está respondiendo a otro mensaje (el sticker)
+    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+
+    // Verificar que haya respondido a un mensaje y que sea un sticker
+    if (!quoted || !quoted.stickerMessage) {
+      return sock.sendMessage(
+        from, 
+        { text: "❌ *Error:* Por favor, responde a un sticker con el comando *.ver* o *.toimg*" }, 
+        { quoted: msg }
+      );
     }
 
     try {
-      ctx.reply("⏳ *Convirtiendo sticker a imagen...*");
+      await sock.sendMessage(from, { text: "⏳ *Convirtiendo sticker a imagen...*" }, { quoted: msg });
       
-      const buffer = await downloadMediaMessage(target, "buffer", {});
+      // Reconstruimos el objeto del mensaje citado para que Baileys lo pueda descargar
+      const targetMessage = {
+        message: quoted,
+        key: {
+          remoteJid: from,
+          id: msg.message.extendedTextMessage.contextInfo.stanzaId
+        }
+      };
+
+      // Descargamos el buffer del sticker
+      const buffer = await downloadMediaMessage(targetMessage, "buffer", {});
+      
+      // Lo convertimos a imagen
       const png = await webpToImage(buffer);
       
-      return ctx.sock.sendMessage(
-        ctx.msg.key.remoteJid,
+      // Enviamos la imagen resultante
+      return sock.sendMessage(
+        from, 
         { 
           image: png, 
           caption: "✅ *Conversión exitosa:* Sticker convertido a imagen." 
-        },
-        { quoted: ctx.msg }
+        }, 
+        { quoted: msg }
       );
+
     } catch (err) {
-      console.error("[toimg] failed:", err);
-      return ctx.reply("❌ *Error:* No se pudo convertir el sticker a imagen.");
+      console.error("Error convirtiendo sticker en ver.js:", err);
+      return sock.sendMessage(
+        from, 
+        { text: "❌ *Error:* No se pudo convertir el sticker a imagen. Asegúrate de que el sticker no sea animado (los animados a veces fallan)." }, 
+        { quoted: msg }
+      );
     }
-  },
-    
+  }
+}
