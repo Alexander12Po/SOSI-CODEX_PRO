@@ -7,7 +7,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const pluginsPath = path.join(__dirname, 'plugins');
 
-// --- Helpers para Usuarios ---
+function normalizarJid(jid) {
+  return jid.split(':')[0] + '@s.whatsapp.net';
+}
+
 const getUsers = () => {
   if (!fs.existsSync('./users.json')) return {};
   return JSON.parse(fs.readFileSync('./users.json', 'utf-8'));
@@ -16,9 +19,7 @@ const getUsers = () => {
 const saveUsers = (data) => {
   fs.writeFileSync('./users.json', JSON.stringify(data, null, 2));
 };
-// -----------------------------
 
-// Comandos que NUNCA cobran ni requieren registro
 const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'addcredito', 'setcredito'];
 
 export const plugins = new Map();
@@ -77,10 +78,10 @@ export async function handler(sock, m) {
   const plugin = plugins.get(cmdName);
   if (!plugin) return;
 
-  const sender = msg.key.participant || msg.key.remoteJid;
+  const senderRaw = msg.key.participant || msg.key.remoteJid;
+  const sender = normalizarJid(senderRaw);
   const users = getUsers();
 
-  // --- LÓGICA DE REGISTRO Y CRÉDITOS ---
   if (!comandosLibres.includes(cmdName)) {
     if (!users[sender]) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
@@ -97,7 +98,6 @@ export async function handler(sock, m) {
 
     await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${users[sender].creditos}*` });
   }
-  // -------------------------------------
 
   try {
     await sock.sendMessage(from, { react: { text: '📩', key: msg.key } });
