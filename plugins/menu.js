@@ -24,6 +24,54 @@ function limpiarNombre(nombre) {
   return primeraPalabra.length > 0 ? primeraPalabra : 'Usuario'
 }
 
+// --- Mapa manual de categorías por comando ---
+// Si un comando no aparece aquí, cae en "OTROS" automáticamente.
+const categoriaPorComando = {
+  // Admin
+  addcredito: 'ADMIN',
+  setcredito: 'ADMIN',
+
+  // Usuario
+  registrar: 'USUARIO',
+  credito: 'USUARIO',
+  perfil: 'USUARIO',
+
+  // General / info del bot
+  menu: 'GENERAL',
+  help: 'GENERAL',
+  info: 'GENERAL',
+  ping: 'GENERAL',
+
+  // Consultas
+  ag: 'CONSULTAS',
+  denuncias: 'CONSULTAS',
+  dir: 'CONSULTAS',
+  dni: 'CONSULTAS',
+  dniamarillo: 'CONSULTAS',
+  dniazul: 'CONSULTAS',
+  dnielectronico: 'CONSULTAS',
+  fiscalia: 'CONSULTAS',
+  nm: 'CONSULTAS',
+  placa: 'CONSULTAS',
+  rfm: 'CONSULTAS',
+  soat: 'CONSULTAS',
+  sueldo: 'CONSULTAS',
+  telp: 'CONSULTAS',
+  vv: 'CONSULTAS'
+}
+
+// Orden en que se muestran las categorías en el menú
+const ordenCategorias = ['ADMIN', 'USUARIO', 'GENERAL', 'CONSULTAS', 'OTROS']
+
+// Emoji por categoría
+const emojiCategoria = {
+  ADMIN: '🧑‍💻',
+  USUARIO: '🕵️',
+  GENERAL: 'ℹ️',
+  CONSULTAS: '📂',
+  OTROS: '📦'
+}
+
 export default {
   command: ['menu', 'help'],
   description: 'Muestra el menú de comandos',
@@ -50,23 +98,28 @@ export default {
     const version = botConfig.version || '1.0.0'
     const commandList = getUniquePlugins()
 
-    // --- Agrupar comandos por categoría ---
+    // --- Agrupar comandos por categoría (usando el mapa manual) ---
     const categorias = {}
     for (const p of commandList) {
-      const cat = p.category || 'Comandos'
+      const cmdPrincipal = p.command[0]
+      const cat = categoriaPorComando[cmdPrincipal] || 'OTROS'
       if (!categorias[cat]) categorias[cat] = []
       categorias[cat].push(p)
     }
 
     let bloquesCategorias = ''
-    for (const [cat, plugins] of Object.entries(categorias)) {
+    for (const cat of ordenCategorias) {
+      const plugins = categorias[cat]
+      if (!plugins || plugins.length === 0) continue
+
       const items = plugins
         .map(p => `│ ✧ *${botConfig.prefix}${p.command[0]}*\n│    ${p.description}`)
         .join('\n')
 
-      bloquesCategorias += `┌─ 📂 *${cat.toUpperCase()}*\n${items}\n└────────────────\n\n`
+      const emoji = emojiCategoria[cat] || '📂'
+      bloquesCategorias += `┌─ ${emoji} *${cat}*\n${items}\n└────────────────\n\n`
     }
-    // ----------------------------------------
+    // ----------------------------------------------------------
 
     const caption = `🐾 〔 *${botConfig.botName}* 〕🐾
    _Bot inteligente de consultas_
