@@ -9,7 +9,8 @@ const __dirname = path.dirname(__filename);
 const pluginsPath = path.join(__dirname, 'plugins');
 
 function normalizarJid(jid) {
-  return jid.split(':')[0] + '@s.whatsapp.net';
+  const numero = jid.split('@')[0].split(':')[0];
+  return numero + '@s.whatsapp.net';
 }
 
 // --- Número del administrador (único autorizado a usar comandos admin) ---
@@ -101,7 +102,7 @@ export async function handler(sock, m) {
   // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
 
-  // --- LÓGICA DE REGISTRO Y CRÉDITOS ---
+  // --- VERIFICAR REGISTRO Y CRÉDITOS (sin cobrar todavía) ---
   if (!comandosLibres.includes(cmdName) && costo > 0) {
     if (!users[sender]) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
@@ -122,11 +123,6 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
 ¡Recarga y continúa disfrutando del servicio! 🚀`
       }, { quoted: msg });
     }
-
-    users[sender].creditos -= costo;
-    saveUsers(users);
-
-    await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${users[sender].creditos}*` });
   } else if (!comandosLibres.includes(cmdName) && costo === 0) {
     // Comando gratis (ej: vv) pero sigue requiriendo registro
     if (!users[sender]) {
@@ -137,9 +133,19 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
 
   try {
     await sock.sendMessage(from, { react: { text: '📩', key: msg.key } });
-    await plugin.exec({ sock, msg, from, args, sender, body });
+    const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
+
+    // Solo cobrar si el plugin no devolvió explícitamente "false" (consulta fallida)
+    const consultaExitosa = resultado !== false;
+
+    if (!comandosLibres.includes(cmdName) && costo > 0 && consultaExitosa) {
+      const usersActualizados = getUsers();
+      usersActualizados[sender].creditos -= costo;
+      saveUsers(usersActualizados);
+      await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usersActualizados[sender].creditos}*` });
+    }
   } catch (err) {
     console.error(`Error ejecutando "${cmdName}":`, err);
     await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
   }
-}
+        }
