@@ -36,6 +36,7 @@ const categoriaPorComando = {
   registrar: 'USUARIO',
   credito: 'USUARIO',
   perfil: 'USUARIO',
+  comprar: 'USUARIO',
 
   // General / info del bot
   menu: 'GENERAL',
