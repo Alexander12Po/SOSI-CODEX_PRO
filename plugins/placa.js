@@ -1,19 +1,16 @@
-export async function handler(m, { conn }) {
-  const texto = `
-━━━━━━━━━━━━━━━━━━
-📋 CONSULTA DE PLACA
+export default {
+  command: ['placa'],
+  description: 'Consulta Placa',
+
+  exec: async ({ sock, from, msg }) => {
+    await sock.sendMessage(from, {
+      text: `━━━━━━━━━━━━━━━━━━
+🚗 CONSULTA DE PLACA
 ━━━━━━━━━━━━━━━━━━
 💎 Servicio exclusivo para usuarios Premium.
 ━━━━━━━━━━━━━━━━━━
 🧑‍💻 Soporte Técnico
-━━━━━━━━━━━━━━━━━━
-`.trim()
-
-  await conn.reply(m.chat, texto, m)
+━━━━━━━━━━━━━━━━━━`
+    }, { quoted: msg })
+  }
 }
-
-handler.help = ['telp']
-handler.tags = ['premium']
-handler.command = /^telp$/i
-
-export default handler
