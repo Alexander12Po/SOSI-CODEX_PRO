@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { botConfig } from './config.js';
+import { obtenerCosto } from './costos.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,14 +86,14 @@ export async function handler(sock, m) {
   const sender = normalizarJid(senderRaw);
   const users = getUsers();
 
+  // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
+  const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
+
   // --- LÓGICA DE REGISTRO Y CRÉDITOS ---
-  if (!comandosLibres.includes(cmdName)) {
+  if (!comandosLibres.includes(cmdName) && costo > 0) {
     if (!users[sender]) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
     }
-
-    // Costo del comando: si el plugin define "cost", se usa; si no, por defecto 2
-    const costo = typeof plugin.cost === 'number' ? plugin.cost : 2;
 
     if (users[sender].creditos < costo) {
       return await sock.sendMessage(from, { text: `⚠️ No tienes créditos suficientes. Esta consulta cuesta *${costo}* crédito(s) y solo tienes *${users[sender].creditos}*.` }, { quoted: msg });
@@ -101,8 +102,12 @@ export async function handler(sock, m) {
     users[sender].creditos -= costo;
     saveUsers(users);
 
-    // Aviso opcional al usuario de cuánto se le descontó
     await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${users[sender].creditos}*` });
+  } else if (!comandosLibres.includes(cmdName) && costo === 0) {
+    // Comando gratis (ej: vv) pero sigue requiriendo registro
+    if (!users[sender]) {
+      return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
+    }
   }
   // -------------------------------------
 
