@@ -1,109 +1,55 @@
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { botConfig } from './config.js';
+import { botConfig } from '../config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const pluginsPath = path.join(__dirname, 'plugins');
+export default {
+  command: ['registrar'],
+  description: 'Regístrate en el bot: .registrar nombre|password',
+  exec: async ({ sock, from, msg, args, sender }) => {
+    const input = args.join(' ').split('|');
 
-function normalizarJid(jid) {
-  return jid.split(':')[0] + '@s.whatsapp.net';
-}
-
-const getUsers = () => {
-  if (!fs.existsSync('./users.json')) return {};
-  return JSON.parse(fs.readFileSync('./users.json', 'utf-8'));
-};
-
-const saveUsers = (data) => {
-  fs.writeFileSync('./users.json', JSON.stringify(data, null, 2));
-};
-
-const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'addcredito', 'setcredito'];
-
-export const plugins = new Map();
-
-async function loadPlugins() {
-  const files = fs.readdirSync(pluginsPath).filter(f => f.endsWith('.js'));
-  for (const file of files) {
-    try {
-      const module = await import(`./plugins/${file}`);
-      const plugin = module.default;
-      if (!plugin || typeof plugin.exec !== 'function') continue;
-
-      let comandos = plugin.command;
-      if (typeof comandos === 'string') comandos = [comandos];
-      if (!Array.isArray(comandos)) continue;
-
-      for (const cmd of comandos) {
-        plugins.set(String(cmd).toLowerCase(), plugin);
-      }
-    } catch (err) {
-      console.log(`⚠️ Error cargando "${file}":`, err.message);
-    }
-  }
-}
-
-export function getUniquePlugins() {
-  const seen = new Set();
-  const result = [];
-  for (const plugin of plugins.values()) {
-    if (!seen.has(plugin)) {
-      seen.add(plugin);
-      result.push(plugin);
-    }
-  }
-  return result;
-}
-
-await loadPlugins();
-
-export async function handler(sock, m) {
-  const msg = m.messages[0];
-  if (!msg?.message) return;
-
-  const from = msg.key.remoteJid;
-  const type = Object.keys(msg.message)[0];
-  const body =
-    type === 'conversation' ? msg.message.conversation :
-    type === 'extendedTextMessage' ? msg.message.extendedTextMessage.text :
-    type === 'imageMessage' ? (msg.message.imageMessage.caption || '') :
-    '';
-
-  if (!body || !body.startsWith(botConfig.prefix)) return;
-
-  const args = body.slice(botConfig.prefix.length).trim().split(/ +/);
-  const cmdName = args.shift().toLowerCase();
-  const plugin = plugins.get(cmdName);
-  if (!plugin) return;
-
-  const senderRaw = msg.key.participant || msg.key.remoteJid;
-  const sender = normalizarJid(senderRaw);
-  const users = getUsers();
-
-  if (!comandosLibres.includes(cmdName)) {
-    if (!users[sender]) {
-      return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
+    if (input.length < 2) {
+      return sock.sendMessage(from, {
+        text: `╔═══❌ *REGISTRO INCOMPLETO* ❌═══
+║
+║ 📝 *Uso correcto:*
+║ ${botConfig.prefix}registrar nombre|password
+║
+║ 📌 *Ejemplo:*
+║ ${botConfig.prefix}registrar Carlos|12345
+║
+╚══════════════════════╝`
+      }, { quoted: msg });
     }
 
-    const costo = typeof plugin.cost === 'number' ? plugin.cost : 2;
+    const [nombre, password] = input;
+    const userId = sender; // ya viene normalizado desde handler.js
+    let users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}');
 
-    if (users[sender].creditos < costo) {
-      return await sock.sendMessage(from, { text: `⚠️ No tienes créditos suficientes. Esta consulta cuesta *${costo}* crédito(s) y solo tienes *${users[sender].creditos}*.` }, { quoted: msg });
+    if (users[userId]) {
+      const numeroLimpio = userId.split('@')[0];
+      return sock.sendMessage(from, { text: `❌ Ya estás registrado con el número *${numeroLimpio}*.` }, { quoted: msg });
     }
 
-    users[sender].creditos -= costo;
-    saveUsers(users);
+    const fechaRegistro = new Date().toLocaleDateString('es-PE');
+    users[userId] = {
+        nombre,
+        password,
+        creditos: 1,
+        fecha: fechaRegistro
+    };
 
-    await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${users[sender].creditos}*` });
-  }
+    fs.writeFileSync('./users.json', JSON.stringify(users, null, 2));
 
-  try {
-    await sock.sendMessage(from, { react: { text: '📩', key: msg.key } });
-    await plugin.exec({ sock, msg, from, args, sender, body });
-  } catch (err) {
-    console.error(`Error ejecutando "${cmdName}":`, err);
-    await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
+    const menuUsuario = `
+╔═════👤 **PERFIL DE USUARIO** 👤═════
+║ 
+║ 👤 **Nombre:** ${nombre}
+║ 💰 **Créditos:** 1
+║ 📅 **Registro:** ${fechaRegistro}
+║ 
+╚══════════════════════════════════╝
+¡Registro completado con éxito! Ahora tienes 1 crédito disponible.`;
+
+    sock.sendMessage(from, { text: menuUsuario });
   }
 }
