@@ -21,9 +21,13 @@ export default {
     try {
       await sock.sendMessage(from, { text: '🔎 Consultando DNI en la base de datos...' }, { quoted: msg })
 
-      // Petición a la nueva API
+      // Petición a la nueva API con los headers corregidos
       const { data: response } = await axios.get(`https://api-codart.cgrt.org/api/v1/consultas/fd/dni/${dni}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       })
 
       // Verificar si la consulta fue exitosa
