@@ -27,16 +27,46 @@ function limpiarNombre(nombre) {
 export default {
   command: ['menu', 'help'],
   description: 'Muestra el menú de comandos',
-  exec: async ({ sock, from, msg }) => {
+  exec: async ({ sock, from, msg, sender }) => {
+    // --- Verificar registro antes de mostrar el menú ---
+    const users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}')
+
+    if (!users[sender]) {
+      return sock.sendMessage(from, {
+        text: `╔═══📝 *REGISTRO REQUERIDO* 📝═══
+║
+║ Aún no estás registrado.
+║
+║ 👉 Usa: *${botConfig.prefix}registrar nombre|password*
+║
+╚══════════════════════╝`
+      }, { quoted: msg })
+    }
+    // ----------------------------------------------------
+
     const { getUniquePlugins } = await import('../handler.js')
     const nombre = limpiarNombre(msg.pushName)
     const uptime = formatUptime(Date.now() - startTime)
     const version = botConfig.version || '1.0.0'
     const commandList = getUniquePlugins()
 
-    const listaComandos = commandList
-      .map(p => `✧ *${botConfig.prefix}${p.command[0]}*\n   ${p.description}`)
-      .join('\n')
+    // --- Agrupar comandos por categoría ---
+    const categorias = {}
+    for (const p of commandList) {
+      const cat = p.category || 'Comandos'
+      if (!categorias[cat]) categorias[cat] = []
+      categorias[cat].push(p)
+    }
+
+    let bloquesCategorias = ''
+    for (const [cat, plugins] of Object.entries(categorias)) {
+      const items = plugins
+        .map(p => `│ ✧ *${botConfig.prefix}${p.command[0]}*\n│    ${p.description}`)
+        .join('\n')
+
+      bloquesCategorias += `┌─ 📂 *${cat.toUpperCase()}*\n${items}\n└────────────────\n\n`
+    }
+    // ----------------------------------------
 
     const caption = `🐾 〔 *${botConfig.botName}* 〕🐾
    _Bot inteligente de consultas_
@@ -51,11 +81,7 @@ export default {
 │ 📦 Comandos  : ${commandList.length}
 └────────────────
 
-┌─ 📜 *COMANDOS DISPONIBLES*
-${listaComandos.split('\n').map(l => `│ ${l}`).join('\n')}
-└────────────────
-
-━━━━━━━━━━━━━━━━━━━━
+${bloquesCategorias}━━━━━━━━━━━━━━━━━━━━
 🐾 *${botConfig.botName}* © ${new Date().getFullYear()} — Todos los derechos reservados`
 
     const esURL = /^https?:\/\//i.test(botConfig.menuImage)
