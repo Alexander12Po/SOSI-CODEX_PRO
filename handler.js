@@ -18,6 +18,9 @@ const saveUsers = (data) => {
 };
 // -----------------------------
 
+// Comandos que NUNCA cobran ni requieren registro
+const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil'];
+
 export const plugins = new Map();
 
 async function loadPlugins() {
@@ -27,7 +30,7 @@ async function loadPlugins() {
       const module = await import(`./plugins/${file}`);
       const plugin = module.default;
       if (!plugin || typeof plugin.exec !== 'function') continue;
-      
+
       let comandos = plugin.command;
       if (typeof comandos === 'string') comandos = [comandos];
       if (!Array.isArray(comandos)) continue;
@@ -39,6 +42,18 @@ async function loadPlugins() {
       console.log(`⚠️ Error cargando "${file}":`, err.message);
     }
   }
+}
+
+export function getUniquePlugins() {
+  const seen = new Set();
+  const result = [];
+  for (const plugin of plugins.values()) {
+    if (!seen.has(plugin)) {
+      seen.add(plugin);
+      result.push(plugin);
+    }
+  }
+  return result;
 }
 
 await loadPlugins();
@@ -62,25 +77,27 @@ export async function handler(sock, m) {
   const plugin = plugins.get(cmdName);
   if (!plugin) return;
 
-  // --- LÓGICA DE REGISTRO Y CRÉDITOS ---
-  const sender = msg.key.participant || msg.key.remoteJid; // ID del usuario
+  const sender = msg.key.participant || msg.key.remoteJid;
   const users = getUsers();
 
-  // 1. Si NO es el comando 'registrar', validamos:
-  if (cmdName !== 'registrar') {
-    // ¿Está registrado?
+  // --- LÓGICA DE REGISTRO Y CRÉDITOS ---
+  if (!comandosLibres.includes(cmdName)) {
     if (!users[sender]) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
     }
-    
-    // ¿Tiene suficientes créditos? (2 créditos por consulta)
-    if (users[sender].creditos < 2) {
-      return await sock.sendMessage(from, { text: '⚠️ No tienes créditos suficientes. (Necesitas 2 créditos).' }, { quoted: msg });
+
+    // Costo del comando: si el plugin define "cost", se usa; si no, por defecto 2
+    const costo = typeof plugin.cost === 'number' ? plugin.cost : 2;
+
+    if (users[sender].creditos < costo) {
+      return await sock.sendMessage(from, { text: `⚠️ No tienes créditos suficientes. Esta consulta cuesta *${costo}* crédito(s) y solo tienes *${users[sender].creditos}*.` }, { quoted: msg });
     }
 
-    // Restamos créditos y guardamos
-    users[sender].creditos -= 2;
+    users[sender].creditos -= costo;
     saveUsers(users);
+
+    // Aviso opcional al usuario de cuánto se le descontó
+    await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${users[sender].creditos}*` });
   }
   // -------------------------------------
 
