@@ -1,0 +1,27 @@
+// costos.js
+// Archivo central de costos por comando.
+// Ambos handler.js (para cobrar) y menu.js (para mostrar) importan de aquí,
+// así nunca se desincronizan.
+
+export const costoPorComando = {
+  ag: 10,
+  denuncias: 20,
+  dir: 6,
+  dni: 1,
+  dniamarillo: 5,
+  dniazul: 5,
+  dnielectronico: 5,
+  fiscalia: 15,
+  nm: 2,
+  placa: 5,
+  rfm: 20,
+  soat: 10,
+  sueldo: 10,
+  telp: 5,
+  vv: 0 // gratis
+}
+
+// Devuelve el costo de un comando. Si no está en la lista, usa el valor por defecto (2).
+export function obtenerCosto(cmdName, defaultCosto = 2) {
+  return costoPorComando.hasOwnProperty(cmdName) ? costoPorComando[cmdName] : defaultCosto
+}
