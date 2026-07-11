@@ -23,7 +23,11 @@ async function loadPlugins() {
   console.log(`🔌 ${plugins.size} comandos cargados: ${[...plugins.keys()].join(', ')}`)
 }
 
-await loadPlugins()
+async function start() {
+  await loadPlugins()
+}
+
+start()
 
 // Devuelve solo un plugin por comando "principal" (evita duplicados por alias, ej: menu/help)
 export function getUniquePlugins() {
