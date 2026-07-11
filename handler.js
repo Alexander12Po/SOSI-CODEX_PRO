@@ -12,6 +12,12 @@ function normalizarJid(jid) {
   return jid.split(':')[0] + '@s.whatsapp.net';
 }
 
+// --- Número del administrador (único autorizado a usar comandos admin) ---
+const ADMIN_JID = '51924894999@s.whatsapp.net';
+
+// Comandos exclusivos del admin
+const comandosAdmin = ['addcredito', 'setcredito'];
+
 // --- Helpers para Usuarios ---
 const getUsers = () => {
   if (!fs.existsSync('./users.json')) return {};
@@ -24,7 +30,7 @@ const saveUsers = (data) => {
 // -----------------------------
 
 // Comandos que NUNCA cobran ni requieren registro
-const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil'];
+const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'comprar', 'addcredito', 'setcredito'];
 
 export const plugins = new Map();
 
@@ -86,6 +92,12 @@ export async function handler(sock, m) {
   const sender = normalizarJid(senderRaw);
   const users = getUsers();
 
+  // --- RESTRICCIÓN DE COMANDOS ADMIN ---
+  if (comandosAdmin.includes(cmdName) && sender !== ADMIN_JID) {
+    return await sock.sendMessage(from, { text: '⛔ Este comando es exclusivo del administrador.' }, { quoted: msg });
+  }
+  // --------------------------------------
+
   // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
 
@@ -96,7 +108,19 @@ export async function handler(sock, m) {
     }
 
     if (users[sender].creditos < costo) {
-      return await sock.sendMessage(from, { text: `⚠️ No tienes créditos suficientes. Esta consulta cuesta *${costo}* crédito(s) y solo tienes *${users[sender].creditos}*.` }, { quoted: msg });
+      return await sock.sendMessage(from, {
+        text: `⚠️ ¡Tus créditos se han agotado!
+
+Ya no cuentas con créditos suficientes para realizar más consultas.
+
+💳 Recarga tus créditos escribiendo al +51 924 894 999.
+
+📋 Para ver el catálogo de paquetes y precios, utiliza el comando:
+
+.comprar
+
+¡Recarga y continúa disfrutando del servicio! 🚀`
+      }, { quoted: msg });
     }
 
     users[sender].creditos -= costo;
