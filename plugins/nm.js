@@ -1,173 +1,74 @@
-import axios from 'axios'
+import fetch from 'node-fetch';
 
-export default {
-  command: ['arg', 'nm', 'buscarnombre', 'buscarname'],
-  description: 'Busca personas por nombre completo (muestra solo coincidencia exacta)',
-  exec: async ({ sock, from, msg, args }) => {
-    const query = args.join(' ').trim()
-
-    if (!query || args.length < 2) {
-      return sock.sendMessage(
-        from,
-        { 
-          text: '❌ *Búsqueda por Nombre Completo*\n\nEscribe el nombre completo que quieras buscar.\n\n*Ejemplo:*\n.nm Alexander Paul Huaman Ramos' 
-        },
-        { quoted: msg }
-      )
+let handler = async (m, { conn, text, usedPrefix, command }) => {
+    // Verificar si el usuario ingresó texto
+    if (!text) {
+        return m.reply(`*⚠️ Uso incorrecto.*\nPor favor, ingresa los nombres y apellidos separados por "|".\n\n*Ejemplo:*\n${usedPrefix + command} Alexander Paul|Huaman|Ramos`);
     }
 
-    const token = 'jmdCRmBLZ13ITSmUGCWcBnDcTuOddttU7d0UbL8S7HJNelk8loSpnVkUyFJO'
+    // Separar los argumentos usando "|"
+    let [n1, ap1, ap2] = text.split('|');
+
+    // Validar que se hayan proporcionado los tres parámetros
+    if (!n1 || !ap1 || !ap2) {
+        return m.reply(`*⚠️ Formato incompleto.*\nAsegúrate de incluir Nombre, Apellido Paterno y Apellido Materno separados por el carácter "|".\n\n*Ejemplo:*\n${usedPrefix + command} Alexander Paul|Huaman|Ramos`);
+    }
+
+    // Configuración de la API
+    const token = 'jmdCRmBLZ13ITSmUGCWcBnDcTuOddttU7d0UbL8S7HJNelk8loSpnVkUyFJO';
+    const url = `https://api-codart.cgrt.org/api/v1/consultas/fd/nm?n1=${encodeURIComponent(n1.trim())}&ap1=${encodeURIComponent(ap1.trim())}&ap2=${encodeURIComponent(ap2.trim())}`;
 
     try {
-      await sock.sendMessage(from, { text: '🔎 Buscando en la base de datos...' }, { quoted: msg })
+        await m.reply('*⏳ Consultando a la base de datos...*');
 
-      // ✅ PARSEO INTELIGENTE: últimas 2 palabras son apellidos, el resto son nombres
-      const palabras = query.split(/\s+/).filter(p => p.length > 0)
-      
-      let n1 = '', ap1 = '', ap2 = ''
-      
-      if (palabras.length === 2) {
-        n1 = palabras[0]
-        ap1 = palabras[1]
-      } else if (palabras.length === 3) {
-        n1 = palabras.slice(0, 2).join(' ')
-        ap1 = palabras[2]
-      } else {
-        n1 = palabras.slice(0, -2).join(' ')
-        ap1 = palabras[palabras.length - 2]
-        ap2 = palabras[palabras.length - 1]
-      }
+        // Petición a la API con los Headers requeridos
+        let res = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
 
-      // Validar que solo contengan letras
-      const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/
-      if (!soloLetras.test(query)) {
-        return sock.sendMessage(
-          from,
-          { text: '❌ El nombre solo debe contener letras.' },
-          { quoted: msg }
-        )
-      }
+        let json = await res.json();
 
-      // Construir URL
-      const url = new URL('https://api-codart.cgrt.org/api/v1/consultas/fd/nm')
-      url.searchParams.append('n1', n1)
-      url.searchParams.append('ap1', ap1)
-      if (ap2) url.searchParams.append('ap2', ap2)
+        // Validar si la consulta fue exitosa
+        if (!json.success || !json.data || !json.data.resultados) {
+            return m.reply('*❌ Error en la API o no se encontraron resultados.*');
+        }
 
-      const { data: response } = await axios.get(url.toString(), {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 15000
-      })
+        // Extraer los datos
+        let cantidad = json.data.cantidad_resultados;
+        let resultados = json.data.resultados;
 
-      if (!response.success || !response.data || !response.data.resultados || response.data.resultados.length === 0) {
-        return sock.sendMessage(
-          from,
-          { text: '❌ No se encontraron resultados.' },
-          { quoted: msg }
-        )
-      }
+        if (cantidad === 0 || resultados.length === 0) {
+            return m.reply(`*ℹ️ No se encontró ninguna persona con esos datos:* ${n1.trim()} ${ap1.trim()} ${ap2.trim()}`);
+        }
 
-      const resultados = response.data.resultados
+        // Construir el mensaje de respuesta
+        let mensaje = `*✅ RESULTADOS ENCONTRADOS (${cantidad})*\n\n`;
 
-      // ✅ FUNCIÓN PARA NORMALIZAR (quita tildes, mayúsculas, espacios)
-      const normalizar = (texto) => {
-        if (!texto) return ''
-        return texto
-          .toString()
-          .toUpperCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/\s+/g, ' ')
-          .trim()
-      }
+        resultados.forEach((resultado, index) => {
+            mensaje += `*👤 Persona ${index + 1}*\n`;
+            mensaje += `*DNI:* ${resultado.dni}\n`;
+            mensaje += `*Nombres:* ${resultado.nombres}\n`;
+            mensaje += `*Apellidos:* ${resultado.apellidos}\n`;
+            mensaje += `*Edad:* ${resultado.edad} años\n`;
+            mensaje += `─────────────────\n`;
+        });
 
-      // ✅ BUSCAR COINCIDENCIA EXACTA
-      const nombreBuscado = normalizar(query)
-      
-      const coincidenciasExactas = resultados.filter(r => {
-        const nombreCompleto = normalizar(`${r.nombres || ''} ${r.apellidos || ''}`)
-        return nombreCompleto === nombreBuscado
-      })
+        // Enviar el resultado final
+        await m.reply(mensaje.trim());
 
-      // ✅ Si hay coincidencia exacta, mostrar SOLO esa
-      if (coincidenciasExactas.length > 0) {
-        const persona = coincidenciasExactas[0]
-        
-        const texto = `┌─❐ *RESULTADO EXACTO* ✅❐\n│\n` +
-          `🆔 *DNI:* ${persona.dni || 'N/D'}\n` +
-          `👤 *Nombres:* ${persona.nombres || 'N/D'}\n` +
-          `👥 *Apellidos:* ${persona.apellidos || 'N/D'}\n` +
-          `🎂 *Edad:* ${persona.edad ? persona.edad + ' años' : 'N/D'}\n` +
-          `│\n└────────────\n\n` +
-          `✅ *Coincidencia exacta encontrada*`
-
-        return await sock.sendMessage(from, { text: texto }, { quoted: msg })
-      }
-
-      // ✅ Si no hay coincidencia exacta, buscar las más cercanas
-      const coincidenciasCercanas = resultados.map(r => {
-        const nombreCompleto = normalizar(`${r.nombres || ''} ${r.apellidos || ''}`)
-        const palabrasBuscadas = nombreBuscado.split(' ')
-        const palabrasResultado = nombreCompleto.split(' ')
-        
-        // Calcular cuántas palabras coinciden
-        const coincidencias = palabrasBuscadas.filter(p => palabrasResultado.includes(p)).length
-        const porcentaje = Math.round((coincidencias / palabrasBuscadas.length) * 100)
-        
-        return { ...r, porcentaje, nombreCompleto }
-      })
-      .filter(r => r.porcentaje >= 70)
-      .sort((a, b) => b.porcentaje - a.porcentaje)
-      .slice(0, 3)
-
-      if (coincidenciasCercanas.length > 0) {
-        let texto = `┌─❐ *COINCIDENCIAS CERCANAS* ❐\n│\n` +
-          ` *Buscaste:* ${query}\n` +
-          `📊 *Resultados similares:* ${coincidenciasCercanas.length}\n` +
-          `│\n└────────────\n\n`
-
-        coincidenciasCercanas.forEach((persona, i) => {
-          texto += `┌─❐ *Opción #${i + 1}* (${persona.porcentaje}% similitud) ❐\n` +
-            `│\n` +
-            `🆔 *DNI:* ${persona.dni || 'N/D'}\n` +
-            `👤 *Nombres:* ${persona.nombres || 'N/D'}\n` +
-            ` *Apellidos:* ${persona.apellidos || 'N/D'}\n` +
-            ` *Edad:* ${persona.edad ? persona.edad + ' años' : 'N/D'}\n` +
-            `│\n└────────────\n\n`
-        })
-
-        texto += `_⚠️ No se encontró coincidencia exacta. Estas son las más cercanas._`
-
-        return await sock.sendMessage(from, { text: texto }, { quoted: msg })
-      }
-
-      // Si no hay nada cercano
-      return await sock.sendMessage(
-        from,
-        { text: '❌ No se encontró ninguna coincidencia exacta ni cercana.\n\n*Verifica que el nombre esté escrito correctamente.*' },
-        { quoted: msg }
-      )
-
-    } catch (err) {
-      console.error('Error en búsqueda:', err?.response?.data || err.message)
-      
-      let mensajeError = '❌ Error al realizar la búsqueda.\n\n'
-      
-      if (err.response) {
-        if (err.response.status === 401) mensajeError += '🔐 Error de autenticación.'
-        else if (err.response.status === 429) mensajeError += '⏱️ Demasiadas solicitudes.'
-        else mensajeError += 'Intenta de nuevo.'
-      } else if (err.code === 'ECONNABORTED') {
-        mensajeError += '⏱️ Tiempo agotado.'
-      } else {
-        mensajeError += 'Verifica tu conexión.'
-      }
-      
-      await sock.sendMessage(from, { text: mensajeError }, { quoted: msg })
+    } catch (error) {
+        console.error('Error en el comando nm:', error);
+        m.reply('*❌ Ocurrió un error inesperado al realizar la consulta.*');
     }
-  }
-}
+};
+
+// Configuración del plugin
+handler.command = ['nm', 'mn']; // El bot reaccionará a .nm y .mn
+handler.help = ['nm <nombres|apellidopaterno|apellidomaterno>'];
+handler.tags = ['busquedas'];
+
+export default handler;
