@@ -2,10 +2,6 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { botConfig } from '../config.js'
-const { getUniquePlugins } = await import('../handler.js')
-
-// ✅ CORRECCIÓN: Se importó prepareWAMessageMedia aquí
-import { generateWAMessageFromContent, proto, prepareWAMessageMedia } from '@whiskeysockets/baileys'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -26,72 +22,48 @@ export default {
   command: ['menu', 'help'],
   description: 'Muestra el menú de comandos',
   exec: async ({ sock, from, msg }) => {
+    const { getUniquePlugins } = await import('../handler.js')
     const pushName = msg.pushName || 'Usuario'
     const uptime = formatUptime(Date.now() - startTime)
     const commandList = getUniquePlugins()
 
     const listaComandos = commandList
-      .map(p => `彡 ${botConfig.prefix}${p.command[0]} : ${p.description}`)
+      .map(p => `› *${botConfig.prefix}${p.command[0]}* — ${p.description}`)
       .join('\n')
 
-    const caption = `-- 💸 *Bot Menu*
-────────────────────────
+    const caption = `🐱 *${botConfig.botName}* — v${botConfig.version}
 
-\`ESTADO   :  ACTIVO\`
-────────────────────────
+🤖 *SOSI-CODEX* | Bot inteligente de consultas. Obtén información de forma rápida y organizada mediante herramientas automatizadas. Diseñado para ofrecer respuestas precisas y una experiencia eficiente.
 
-彡 Name : ${pushName}
-彡 Prefix : *${botConfig.prefix}*
-彡 Uptime : ${uptime}
-彡 Total CMD : ${commandList.length}
-彡 Main : Whatsapp
+────────────────────
 
-*Comandos:*
+📌 *ESTADO*
+› Prefijo: *[ ${botConfig.prefix} ]*
+› Activo: *${uptime}*
+› Comandos disponibles: *${commandList.length}*
+
+────────────────────
+
+📜 *LISTA DE COMANDOS*
+
 ${listaComandos}
 
-────────────────────────
-| \`CREATED by: ${botConfig.botName}\``
+────────────────────
+
+👤 Solicitado por: *${pushName}*
+🧠 Creado por: *${botConfig.botName}*
+© ${new Date().getFullYear()} — Todos los derechos reservados`
 
     const imagePath = path.join(__dirname, '..', botConfig.menuImage)
 
-    let mediaMessage = null;
     if (fs.existsSync(imagePath)) {
-      const image = fs.readFileSync(imagePath)
-      // ✅ CORRECCIÓN: Ahora se llama a la función importada directamente
-      const upload = await prepareWAMessageMedia({ image: image }, { upload: sock.waUploadToServer })
-      mediaMessage = upload.imageMessage
+      await sock.sendMessage(
+        from,
+        { image: fs.readFileSync(imagePath), caption },
+        { quoted: msg }
+      )
+    } else {
+      await sock.sendMessage(from, { text: caption }, { quoted: msg })
     }
-
-    const interactiveMessage = {
-      body: proto.Message.InteractiveMessage.Body.create({ text: caption }),
-      footer: proto.Message.InteractiveMessage.Footer.create({ text: ' ' }),
-      header: proto.Message.InteractiveMessage.Header.create({
-        title: '',
-        subtitle: '',
-        hasMediaAttachment: !!mediaMessage,
-        imageMessage: mediaMessage 
-      }),
-      nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-        buttons: [
-          {
-            name: 'quick_reply',
-            buttonParamsJson: JSON.stringify({
-              display_text: '↩ CONTACTAR CREADOR', 
-              id: `${botConfig.prefix}creador` 
-            })
-          }
-        ]
-      })
-    }
-
-    const msgData = generateWAMessageFromContent(from, {
-      viewOnceMessage: {
-        message: {
-          interactiveMessage: proto.Message.InteractiveMessage.create(interactiveMessage)
-        }
-      }
-    }, { quoted: msg })
-
-    await sock.relayMessage(from, msgData.message, { messageId: msgData.key.id })
   }
 }
