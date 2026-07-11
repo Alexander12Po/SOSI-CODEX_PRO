@@ -18,7 +18,6 @@ function formatUptime(ms) {
   return `${s}s`
 }
 
-// Evita que nombres con símbolos/decoraciones raras rompan el diseño del menú
 function limpiarNombre(nombre) {
   if (!nombre) return 'Usuario'
   const primeraPalabra = nombre.trim().split(/\s+/)[0]
@@ -39,36 +38,45 @@ export default {
       .map(p => `✧ *${botConfig.prefix}${p.command[0]}*\n   ${p.description}`)
       .join('\n')
 
-    const caption = `┏━❮ 🧑‍💻 *${botConfig.botName}* ❯━┓
-┃  Bot inteligente de consultas
-┃  v${version}
-┗━━━━━━━━━━━━━━━┛
+    const caption = `🐾 〔 *${botConfig.botName}* 〕🐾
+   _Bot inteligente de consultas_
+━━━━━━━━━━━━━━━━━━━━
 
-_Obtén información de forma rápida y organizada, con respuestas precisas y automatizadas._
+👋 ¡Hola, *${nombre}*!
 
-📌 *ESTADO*
-▸ Usuario: ${nombre}
-▸ Prefijo: [ ${botConfig.prefix} ]
-▸ Activo: ${uptime}
-▸ Comandos: ${commandList.length}
+┌─ 📊 *ESTADO*
+│ ⚙️ Versión   : ${version}
+│ 🔧 Prefijo   : [ ${botConfig.prefix} ]
+│ ⏱️ Activo    : ${uptime}
+│ 📦 Comandos  : ${commandList.length}
+└────────────────
 
-『 📜 COMANDOS 』
+┌─ 📜 *COMANDOS DISPONIBLES*
+${listaComandos.split('\n').map(l => `│ ${l}`).join('\n')}
+└────────────────
 
-${listaComandos}
+━━━━━━━━━━━━━━━━━━━━
+🐾 *${botConfig.botName}* © ${new Date().getFullYear()} — Todos los derechos reservados`
 
-▬▬▬▬▬▬▬▬▬▬▬▬
-🐾 *${botConfig.botName}* © ${new Date().getFullYear()}`
+    const esURL = /^https?:\/\//i.test(botConfig.menuImage)
 
-    const imagePath = path.join(__dirname, '..', botConfig.menuImage)
-
-    if (fs.existsSync(imagePath)) {
+    if (esURL) {
       await sock.sendMessage(
         from,
-        { image: fs.readFileSync(imagePath), caption },
+        { image: { url: botConfig.menuImage }, caption },
         { quoted: msg }
       )
     } else {
-      await sock.sendMessage(from, { text: caption }, { quoted: msg })
+      const imagePath = path.join(__dirname, '..', botConfig.menuImage)
+      if (fs.existsSync(imagePath)) {
+        await sock.sendMessage(
+          from,
+          { image: fs.readFileSync(imagePath), caption },
+          { quoted: msg }
+        )
+      } else {
+        await sock.sendMessage(from, { text: caption }, { quoted: msg })
+      }
     }
   }
 }
