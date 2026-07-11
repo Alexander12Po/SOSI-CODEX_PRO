@@ -6,6 +6,7 @@ export default {
   exec: async ({ sock, from, msg, args }) => {
     const dni = args[0]
 
+    // Validación de DNI (8 dígitos)
     if (!dni || !/^\d{8}$/.test(dni)) {
       return sock.sendMessage(
         from,
@@ -14,38 +15,61 @@ export default {
       )
     }
 
-    const token = process.env.DNI_API_TOKEN
-    if (!token) {
-      return sock.sendMessage(
-        from,
-        { text: '⚠️ No se configuró el token de la API.\nAgrega *DNI_API_TOKEN* en tu archivo `.env`.' },
-        { quoted: msg }
-      )
-    }
+    // Tu token directo
+    const token = 'jmdCRmBLZ13ITSmUGCWcBnDcTuOddttU7d0UbL8S7HJNelk8loSpnVkUyFJO'
 
     try {
-      await sock.sendMessage(from, { text: '🔎 Consultando DNI...' }, { quoted: msg })
+      await sock.sendMessage(from, { text: '🔎 Consultando DNI en la base de datos...' }, { quoted: msg })
 
-      const { data } = await axios.get('https://api.apis.net.pe/v2/reniec/dni', {
-        params: { numero: dni },
+      // Petición a la nueva API
+      const { data: response } = await axios.get(`https://api-codart.cgrt.org/api/v1/consultas/fd/dni/${dni}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
 
+      // Verificar si la consulta fue exitosa
+      if (!response.success || !response.data) {
+        return sock.sendMessage(
+          from,
+          { text: '❌ No se encontraron resultados para ese DNI.' },
+          { quoted: msg }
+        )
+      }
+
+      const userData = response.data
+
+      // Construcción del mensaje con los nuevos datos disponibles
       const text = `┌─❐ *CONSULTA DNI* ❐
 │
-│ 🆔 DNI: ${data.numeroDocumento}
-│ 👤 Nombres: ${data.nombres}
-│ 👨‍👦 Ap. Paterno: ${data.apellidoPaterno}
-│ 👩‍👦 Ap. Materno: ${data.apellidoMaterno}
+│ 🆔 *DNI:* ${userData.dni.numero}
+│ 👤 *Nombres:* ${userData.nombres}
+│ 👥 *Apellidos:* ${userData.apellidos}
+│ ⚧️ *Género:* ${userData.genero}
+│ 🎂 *Nacimiento:* ${userData.nacimiento.fecha} (${userData.nacimiento.edad})
+│ 💍 *Estado Civil:* ${userData.informacion_general.estado_civil}
+│ 🎓 *Educación:* ${userData.informacion_general.nivel_educativo}
+│ 📍 *Dirección:* ${userData.domicilio.direccion}
+│ 🗺️ *Distrito:* ${userData.domicilio.distrito}, ${userData.domicilio.provincia}
 │
 └────────────`
 
-      await sock.sendMessage(from, { text }, { quoted: msg })
+      // Verificar si la API devolvió la imagen en Base64
+      if (userData.images && userData.images.length > 0 && userData.images[0].data_uri) {
+        // Extraer solo la parte base64 de la URI ("data:image/jpeg;base64,...")
+        const base64Data = userData.images[0].data_uri.split(',')[1]
+        const imageBuffer = Buffer.from(base64Data, 'base64')
+
+        // Enviar imagen con el texto como descripción (caption)
+        await sock.sendMessage(from, { image: imageBuffer, caption: text }, { quoted: msg })
+      } else {
+        // Si no hay imagen, solo enviar el texto
+        await sock.sendMessage(from, { text }, { quoted: msg })
+      }
+
     } catch (err) {
       console.error('Error consultando DNI:', err?.response?.data || err.message)
       await sock.sendMessage(
         from,
-        { text: '❌ No se pudo obtener información. Verifica el número de DNI o que tu token siga siendo válido.' },
+        { text: '❌ Ocurrió un error al consultar. Verifica el número de DNI o si el servicio está disponible.' },
         { quoted: msg }
       )
     }
