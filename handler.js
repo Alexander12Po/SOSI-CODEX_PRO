@@ -19,7 +19,7 @@ const saveUsers = (data) => {
 // -----------------------------
 
 // Comandos que NUNCA cobran ni requieren registro
-const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil'];
+const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'addcredito', 'setcredito'];
 
 export const plugins = new Map();
 
@@ -86,7 +86,6 @@ export async function handler(sock, m) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
     }
 
-    // Costo del comando: si el plugin define "cost", se usa; si no, por defecto 2
     const costo = typeof plugin.cost === 'number' ? plugin.cost : 2;
 
     if (users[sender].creditos < costo) {
@@ -96,7 +95,6 @@ export async function handler(sock, m) {
     users[sender].creditos -= costo;
     saveUsers(users);
 
-    // Aviso opcional al usuario de cuánto se le descontó
     await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${users[sender].creditos}*` });
   }
   // -------------------------------------
