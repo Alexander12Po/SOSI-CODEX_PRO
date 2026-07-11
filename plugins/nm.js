@@ -1,18 +1,18 @@
 import axios from 'axios'
 
 export default {
-  command: ['nm', 'buscarnombre', 'buscarname'],
+  command: ['arg', 'nm', 'buscarnombre', 'buscarname'],
   description: 'Busca personas por sus nombres y apellidos (Perú)',
   exec: async ({ sock, from, msg, args }) => {
     // Unir todos los argumentos
     const query = args.join(' ').trim()
 
-    // Validación: se necesitan al menos 2 palabras (nombre + apellido)
-    if (!query || args.length < 2) {
+    // Validación: se necesitan al menos 3 palabras (nombre + apellido1 + apellido2)
+    if (!query || args.length < 3) {
       return sock.sendMessage(
         from,
         { 
-          text: '❌ *Búsqueda por Nombre*\n\nDebes ingresar al menos un nombre y un apellido.\n\n*Ejemplos:*\n• .arg Juan Perez\n• .buscarnombre Maria Garcia Lopez\n• .buscarname Carlos Rodriguez' 
+          text: '❌ *Búsqueda por Nombre*\n\nDebes ingresar nombre y dos apellidos.\n\n*Ejemplos:*\n• .nm Alexander Paul Huaman\n• .arg Juan Perez Garcia\n• .buscarnombre Maria Garcia Lopez' 
         },
         { quoted: msg }
       )
@@ -22,22 +22,49 @@ export default {
     const token = 'jmdCRmBLZ13ITSmUGCWcBnDcTuOddttU7d0UbL8S7HJNelk8loSpnVkUyFJO'
 
     try {
-      await sock.sendMessage(from, { text: '🔎 Buscando en la base de datos...' }, { quoted: msg })
+      await sock.sendMessage(from, { text: ' Buscando en la base de datos...' }, { quoted: msg })
 
-      // Dividir los nombres y apellidos
-      // Asumimos: primera palabra = nombre, segunda = primer apellido, tercera+ = segundo apellido
-      const palabras = query.split(/\s+/)
-      const n1 = palabras[0] || ''  // Primer nombre
-      const ap1 = palabras[1] || '' // Primer apellido
-      const ap2 = palabras.slice(2).join(' ') || '' // Segundo apellido (resto)
+      // Dividir los nombres y apellidos - SOLO tomar las 3 primeras palabras
+      // n1 = primera palabra (nombre)
+      // ap1 = segunda palabra (primer apellido)
+      // ap2 = tercera palabra (segundo apellido)
+      const palabras = args.slice(0, 3)
+      const n1 = palabras[0] || ''
+      const ap1 = palabras[1] || ''
+      const ap2 = palabras[2] || ''
+
+      // Validar que solo contengan letras (sin números ni caracteres especiales)
+      const soloLetras = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/
+      
+      if (!soloLetras.test(n1)) {
+        return sock.sendMessage(
+          from,
+          { text: '❌ El nombre solo debe contener letras.\n\n*Ejemplo correcto:* .nm Alexander Paul Huaman' },
+          { quoted: msg }
+        )
+      }
+      
+      if (!soloLetras.test(ap1)) {
+        return sock.sendMessage(
+          from,
+          { text: '❌ El primer apellido solo debe contener letras.\n\n*Ejemplo correcto:* .nm Alexander Paul Huaman' },
+          { quoted: msg }
+        )
+      }
+      
+      if (!soloLetras.test(ap2)) {
+        return sock.sendMessage(
+          from,
+          { text: '❌ El segundo apellido solo debe contener letras.\n\n*Ejemplo correcto:* .nm Alexander Paul Huaman' },
+          { quoted: msg }
+        )
+      }
 
       // Construir URL con parámetros
       const url = new URL('https://api-codart.cgrt.org/api/v1/consultas/fd/nm')
       url.searchParams.append('n1', n1)
       url.searchParams.append('ap1', ap1)
-      if (ap2) {
-        url.searchParams.append('ap2', ap2)
-      }
+      url.searchParams.append('ap2', ap2)
 
       // Petición a la API
       const { data: response } = await axios.get(url.toString(), {
@@ -62,9 +89,9 @@ export default {
 
       // Construir mensaje con los resultados
       let texto = `┌─❐ *RESULTADOS DE BÚSQUEDA* ❐\n│\n`
-      texto += `📊 *Total encontrado:* ${cantidad_resultados}\n`
-      texto += ` *Búsqueda:* ${n1} ${ap1}${ap2 ? ' ' + ap2 : ''}\n`
-      texto += `│\n└────────────\n\n`
+      texto += ` *Total encontrado:* ${cantidad_resultados}\n`
+      texto += ` *Búsqueda:* ${n1} ${ap1} ${ap2}\n`
+      texto += `│\n────────────\n\n`
 
       // Limitar a 10 resultados para no saturar
       const maxResultados = Math.min(resultados.length, 10)
@@ -73,10 +100,10 @@ export default {
         const persona = resultados[i]
         texto += `┌─❐ *Resultado #${i + 1}* ❐\n`
         texto += `│\n`
-        texto += ` *DNI:* ${persona.dni || 'No disponible'}\n`
-        texto += ` *Nombres:* ${persona.nombres || 'No disponible'}\n`
-        texto += `👥 *Apellidos:* ${persona.apellidos || 'No disponible'}\n`
-        texto += `🎂 *Edad:* ${persona.edad ? persona.edad + ' años' : 'No disponible'}\n`
+        texto += `🆔 *DNI:* ${persona.dni || 'No disponible'}\n`
+        texto += `👤 *Nombres:* ${persona.nombres || 'No disponible'}\n`
+        texto += ` *Apellidos:* ${persona.apellidos || 'No disponible'}\n`
+        texto += ` *Edad:* ${persona.edad ? persona.edad + ' años' : 'No disponible'}\n`
         texto += `│\n└────────────\n\n`
       }
 
@@ -94,11 +121,13 @@ export default {
       
       if (err.response) {
         if (err.response.status === 401) {
-          mensajeError += '️ Error de autenticación con la API.'
+          mensajeError += '🔐 Error de autenticación con la API.'
         } else if (err.response.status === 404) {
           mensajeError += '🔍 No se encontraron resultados.'
         } else if (err.response.status === 429) {
-          mensajeError += '⏱️ Demasiadas solicitudes. Intenta más tarde.'
+          mensajeError += '️ Demasiadas solicitudes. Intenta más tarde.'
+        } else if (err.response.data?.errors?.ap2) {
+          mensajeError += '⚠️ El segundo apellido debe contener solo letras.\n\n*Usa:* .nm Alexander Paul Huaman'
         } else {
           mensajeError += 'Intenta nuevamente en unos momentos.'
         }
@@ -111,4 +140,4 @@ export default {
       await sock.sendMessage(from, { text: mensajeError }, { quoted: msg })
     }
   }
-        }
+}
