@@ -12,22 +12,36 @@ export const plugins = new Map()
 async function loadPlugins() {
   const files = fs.readdirSync(pluginsPath).filter(f => f.endsWith('.js'))
   for (const file of files) {
-    const module = await import(`./plugins/${file}`)
-    const plugin = module.default
-    if (plugin?.command) {
-      for (const cmd of plugin.command) {
-        plugins.set(cmd, plugin)
+    try {
+      const module = await import(`./plugins/${file}`)
+      const plugin = module.default
+
+      if (!plugin || typeof plugin.exec !== 'function') {
+        console.log(`⚠️ Se omitió "${file}": no tiene un export default válido con 'exec'.`)
+        continue
       }
+
+      let comandos = plugin.command
+
+      // Acepta tanto array (['dni']) como string suelto ('dni')
+      if (typeof comandos === 'string') comandos = [comandos]
+
+      if (!Array.isArray(comandos) || comandos.length === 0) {
+        console.log(`⚠️ Se omitió "${file}": el campo 'command' no es un texto ni una lista válida.`)
+        continue
+      }
+
+      for (const cmd of comandos) {
+        plugins.set(String(cmd).toLowerCase(), plugin)
+      }
+    } catch (err) {
+      console.log(`⚠️ Error cargando "${file}", se omitió:`, err.message)
     }
   }
   console.log(`🔌 ${plugins.size} comandos cargados: ${[...plugins.keys()].join(', ')}`)
 }
 
-async function start() {
-  await loadPlugins()
-}
-
-start()
+await loadPlugins()
 
 // Devuelve solo un plugin por comando "principal" (evita duplicados por alias, ej: menu/help)
 export function getUniquePlugins() {
