@@ -1,5 +1,5 @@
-import fs from 'fs';
 import { botConfig } from '../config.js';
+import User from '../models/User.js';
 
 export default {
   command: ['registrar'],
@@ -22,23 +22,23 @@ export default {
     }
 
     const [nombre, password] = input;
-    const userId = sender; // ya viene normalizado desde handler.js
-    let users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}');
+    const userId = sender;
 
-    if (users[userId]) {
+    const existente = await User.findOne({ numero: userId });
+    if (existente) {
       const numeroLimpio = userId.split('@')[0];
       return sock.sendMessage(from, { text: `❌ Ya estás registrado con el número *${numeroLimpio}*.` }, { quoted: msg });
     }
 
     const fechaRegistro = new Date().toLocaleDateString('es-PE');
-    users[userId] = {
-        nombre,
-        password,
-        creditos: 1,
-        fecha: fechaRegistro
-    };
 
-    fs.writeFileSync('./users.json', JSON.stringify(users, null, 2));
+    await User.create({
+      numero: userId,
+      nombre,
+      password,
+      creditos: 1,
+      fecha: fechaRegistro
+    });
 
     const menuUsuario = `
 ╔═════👤 **PERFIL DE USUARIO** 👤═════
