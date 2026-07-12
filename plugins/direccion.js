@@ -8,11 +8,12 @@ export default {
 
     // Validación de DNI (8 dígitos)
     if (!s_dni || !/^\d{8}$/.test(s_dni)) {
-      return sock.sendMessage(
+      await sock.sendMessage(
         from,
         { text: '❌ *Uso incorrecto.*\nDebes ingresar un DNI válido de 8 dígitos.\n\n*Ejemplo:* .dir 12345678' },
         { quoted: msg }
       )
+      return false
     }
 
     // Tu token directo
@@ -32,22 +33,24 @@ export default {
 
       // Verificar si la consulta fue exitosa
       if (!response.success || !response.data || !response.data.direcciones) {
-        return sock.sendMessage(
+        await sock.sendMessage(
           from,
           { text: '❌ No se encontró historial de direcciones para el DNI ingresado.' },
           { quoted: msg }
         )
+        return false
       }
 
       const info = response.data
       const totalRegistros = info.total_registros
 
       if (totalRegistros === 0 || info.direcciones.length === 0) {
-        return sock.sendMessage(
+        await sock.sendMessage(
           from,
           { text: `ℹ️ No se registraron direcciones para el DNI: ${info.consulta}` },
           { quoted: msg }
         )
+        return false
       }
 
       // Construcción del encabezado del mensaje
@@ -80,6 +83,7 @@ export default {
         { text: `❌ *Error en la consulta:*\n${errorDeApi}` },
         { quoted: msg }
       )
+      return false
     }
   }
 }
