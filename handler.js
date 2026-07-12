@@ -77,9 +77,7 @@ export async function handler(sock, m) {
   const plugin = plugins.get(cmdName);
   if (!plugin) return;
 
-  console.log('DEBUG msg.key completo:', JSON.stringify(msg.key, null, 2));
-
-  const senderRaw = msg.key.participant || msg.key.remoteJid;
+  const senderRaw = msg.key.participantAlt || msg.key.participant || msg.key.remoteJidAlt || msg.key.remoteJid;
   const sender = normalizarJid(senderRaw);
 
   // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
