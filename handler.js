@@ -100,36 +100,41 @@ export async function handler(sock, m) {
   try {
     await sock.sendMessage(from, { react: { text: '📩', key: msg.key } });
     
+    // Ejecutamos el plugin
     const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
 
+    // Si hubo error de validación interna en el plugin, se detiene
     if (resultado === false) return;
 
+    // Descontamos en la Base de Datos si cuesta créditos
+    let creditosActualizados = null;
     if (!comandosLibres.includes(cmdName) && costo > 0) {
       const usuarioActualizado = await User.findOneAndUpdate(
         { numero: sender },
         { $inc: { creditos: -costo } },
         { new: true }
       );
+      creditosActualizados = usuarioActualizado.creditos;
+    }
 
-      const usuarioTag = `@${sender.split('@')[0]}`;
-      
-      // Pie de página limpio con los créditos
-      const infoCreditos = `\n\n─── *SOSI CODEX* ★ ───\n💳 *CRÉDITOS:* ${usuarioActualizado.creditos}\n👤 *USUARIO:* ${usuarioTag}`;
-
-      if (resultado.image) {
-        resultado.caption += infoCreditos;
-        await sock.sendMessage(from, { image: resultado.image, caption: resultado.caption, mentions: [sender] }, { quoted: msg });
-      } else if (resultado.text) {
-        resultado.text += infoCreditos;
-        await sock.sendMessage(from, { text: resultado.text, mentions: [sender] }, { quoted: msg });
+    // SOLO si el plugin retornó un objeto {text: ...} o {image: ...} adjuntamos el pie de página
+    if (resultado && typeof resultado === 'object' && (resultado.text || resultado.image)) {
+      let infoCreditos = '';
+      if (!comandosLibres.includes(cmdName) && costo > 0) {
+        const usuarioTag = `@${sender.split('@')[0]}`;
+        infoCreditos = `\n\n─── *SOSI CODEX* ★ ───\n💳 *CRÉDITOS:* ${creditosActualizados}\n👤 *USUARIO:* ${usuarioTag}`;
       }
-    } else {
+
       if (resultado.image) {
-        await sock.sendMessage(from, { image: resultado.image, caption: resultado.caption }, { quoted: msg });
+        const captionFinal = (resultado.caption || '') + infoCreditos;
+        await sock.sendMessage(from, { image: resultado.image, caption: captionFinal, mentions: [sender] }, { quoted: msg });
       } else if (resultado.text) {
-        await sock.sendMessage(from, { text: resultado.text }, { quoted: msg });
+        const textFinal = resultado.text + infoCreditos;
+        await sock.sendMessage(from, { text: textFinal, mentions: [sender] }, { quoted: msg });
       }
     }
+    // Si no retorna un objeto (ej: .credito, .registrar), no hacemos nada más, ya que el plugin se envió a sí mismo.
+
   } catch (err) {
     console.error(`Error ejecutando "${cmdName}":`, err);
     await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
