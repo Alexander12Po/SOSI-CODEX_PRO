@@ -7,7 +7,9 @@ export default {
   exec: async ({ sock, from, msg, args, sender }) => {
     // Solo administradores pueden usar este comando
     if (!botConfig.admins.includes(sender)) {
-      return sock.sendMessage(from, { text: '❌ No tienes permiso para usar este comando.' }, { quoted: msg });
+      return sock.sendMessage(from, {
+        text: `❌ No tienes permiso para usar este comando.\n\n🔍 Tu ID detectado por el bot es:\n${sender}\n\n📋 IDs autorizados actualmente:\n${botConfig.admins.join('\n')}`
+      }, { quoted: msg });
     }
 
     // Uso: .addcredito 51999999999@s.whatsapp.net 5
