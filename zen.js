@@ -9,6 +9,7 @@ import { Boom } from '@hapi/boom'
 import pino from 'pino'
 import readline from 'readline'
 import qrcode from 'qrcode-terminal'
+import NodeCache from 'node-cache'
 import { handler } from './handler.js'
 import { botConfig } from './config.js'
 
@@ -30,11 +31,15 @@ async function startBot() {
 
   const usePairing = botConfig.loginMethod === 'pairing'
 
+  // Cache de metadatos de grupo, para evitar consultas repetidas que causan demora
+  const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false })
+
   const sock = makeWASocket({
     version,
     logger: pino({ level: 'silent' }),
     auth: state,
-    browser: ['SOSI CODEX', 'Chrome', '1.0.0']
+    browser: ['SOSI CODEX', 'Chrome', '1.0.0'],
+    cachedGroupMetadata: async (jid) => groupCache.get(jid)
   })
 
   let pairingRequested = false
@@ -81,6 +86,7 @@ async function startBot() {
   })
 
   sock.ev.on('messages.upsert', async (m) => {
+    if (m.type !== 'notify') return
     try {
       await handler(sock, m)
     } catch (err) {
