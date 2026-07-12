@@ -8,11 +8,12 @@ export default {
 
     // Validación de placa
     if (!placa) {
-      return sock.sendMessage(
+      await sock.sendMessage(
         from,
         { text: '❌ *Uso incorrecto.*\nDebes ingresar la placa del vehículo.\n\n*Ejemplo:* .soat D5G960' },
         { quoted: msg }
       )
+      return false
     }
 
     // Limpieza de placa (formato alfanumérico)
@@ -35,11 +36,12 @@ export default {
 
       // Validación de datos
       if (!response.success || !response.data || !response.data.historial) {
-        return sock.sendMessage(
+        await sock.sendMessage(
           from,
           { text: '❌ No se encontró información de SOAT para esta placa.' },
           { quoted: msg }
         )
+        return false
       }
 
       const info = response.data
@@ -68,6 +70,7 @@ export default {
       console.error('Error en SOAT:', err?.response?.data || err.message)
       const errorDeApi = err?.response?.data?.message || 'Error al consultar el SOAT.'
       await sock.sendMessage(from, { text: `❌ *Error:* ${errorDeApi}` }, { quoted: msg })
+      return false
     }
   }
 }
