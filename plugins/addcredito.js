@@ -1,5 +1,5 @@
-import fs from 'fs';
 import { botConfig } from '../config.js';
+import User from '../models/User.js';
 
 export default {
   command: ['addcredito', 'setcredito'],
@@ -12,31 +12,37 @@ export default {
       }, { quoted: msg });
     }
 
-    // Uso: .addcredito 51999999999@s.whatsapp.net 5
+    // Uso: .addcredito nombre cantidad
     if (args.length < 2) {
-      return sock.sendMessage(from, { text: 'Uso correcto: .addcredito numero@s.whatsapp.net cantidad\n\nEjemplo: .addcredito 51987654321@s.whatsapp.net 5' }, { quoted: msg });
+      return sock.sendMessage(from, { text: 'Uso correcto: .addcredito nombre cantidad\n\nEjemplo: .addcredito Carlos 5' }, { quoted: msg });
     }
 
-    const [numeroObjetivo, cantidadStr] = args;
+    const cantidadStr = args[args.length - 1];
+    const nombreObjetivo = args.slice(0, -1).join(' ');
     const cantidad = parseInt(cantidadStr, 10);
 
     if (isNaN(cantidad)) {
       return sock.sendMessage(from, { text: '❌ La cantidad debe ser un número.' }, { quoted: msg });
     }
 
-    let users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}');
+    // Búsqueda de nombre sin importar mayúsculas/minúsculas
+    const usuario = await User.findOne({ nombre: { $regex: `^${nombreObjetivo}$`, $options: 'i' } });
 
-    if (!users[numeroObjetivo]) {
-      return sock.sendMessage(from, { text: '❌ Ese usuario no está registrado.' }, { quoted: msg });
+    if (!usuario) {
+      return sock.sendMessage(from, { text: `❌ No se encontró ningún usuario registrado con el nombre "${nombreObjetivo}".` }, { quoted: msg });
     }
 
-    users[numeroObjetivo].creditos += cantidad;
-    if (users[numeroObjetivo].creditos < 0) users[numeroObjetivo].creditos = 0;
+    let nuevosCreditos = usuario.creditos + cantidad;
+    if (nuevosCreditos < 0) nuevosCreditos = 0;
 
-    fs.writeFileSync('./users.json', JSON.stringify(users, null, 2));
+    const usuarioActualizado = await User.findOneAndUpdate(
+      { _id: usuario._id },
+      { creditos: nuevosCreditos },
+      { new: true }
+    );
 
     sock.sendMessage(from, {
-      text: `✅ Créditos actualizados.\n👤 Usuario: ${users[numeroObjetivo].nombre}\n💰 Créditos actuales: ${users[numeroObjetivo].creditos}`
+      text: `✅ Créditos actualizados.\n👤 Usuario: ${usuarioActualizado.nombre}\n💰 Créditos actuales: ${usuarioActualizado.creditos}`
     }, { quoted: msg });
   }
 }
