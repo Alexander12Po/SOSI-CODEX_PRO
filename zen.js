@@ -12,6 +12,7 @@ import qrcode from 'qrcode-terminal'
 import NodeCache from 'node-cache'
 import { handler } from './handler.js'
 import { botConfig } from './config.js'
+import { handleGroupParticipantsUpdate } from './plugins/bienvenida.js'
 
 const question = (text) => new Promise((resolve) => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
@@ -91,6 +92,15 @@ async function startBot() {
       await handler(sock, m)
     } catch (err) {
       console.error('Error en handler:', err)
+    }
+  })
+
+  // Evento para detectar nuevos participantes y enviar la bienvenida
+  sock.ev.on('group-participants.update', async (update) => {
+    try {
+      await handleGroupParticipantsUpdate(sock, update)
+    } catch (err) {
+      console.error('Error en evento de bienvenida:', err)
     }
   })
 }
