@@ -8,11 +8,12 @@ export default {
 
     // Validación de DNI (8 dígitos)
     if (!s_dni || !/^\d{8}$/.test(s_dni)) {
-      return sock.sendMessage(
+      await sock.sendMessage(
         from,
         { text: '❌ Debes ingresar un DNI válido de 8 dígitos.\n\nEjemplo: *.ag 12345678*' },
         { quoted: msg }
       )
+      return false
     }
 
     // Tu token directo
@@ -32,22 +33,24 @@ export default {
 
       // Verificar si la consulta fue exitosa
       if (!response.success || !response.data || !response.data.relaciones) {
-        return sock.sendMessage(
+        await sock.sendMessage(
           from,
           { text: '❌ No se encontraron datos familiares para el DNI ingresado.' },
           { quoted: msg }
         )
+        return false
       }
 
       const info = response.data
       const totalFamiliares = info.familiares
 
       if (totalFamiliares === 0 || info.relaciones.length === 0) {
-        return sock.sendMessage(
+        await sock.sendMessage(
           from,
           { text: `ℹ️ No se registraron familiares para el DNI: ${info.consulta}` },
           { quoted: msg }
         )
+        return false
       }
 
       // Construcción del encabezado del mensaje
@@ -81,6 +84,7 @@ export default {
         { text: `❌ ${errorDeApi}` },
         { quoted: msg }
       )
+      return false
     }
   }
 }
