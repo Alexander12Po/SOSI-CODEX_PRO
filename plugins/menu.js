@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { botConfig } from '../config.js'
 import { costoPorComando } from '../costos.js'
+import User from '../models/User.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -26,28 +27,23 @@ function limpiarNombre(nombre) {
 }
 
 // --- Mapa manual de categorías por comando ---
-// Si un comando no aparece aquí, cae en "OTROS" automáticamente.
 const categoriaPorComando = {
-  // Admin
   addcredito: 'ADMIN',
   setcredito: 'ADMIN',
   listausuarios: 'ADMIN',
   usuarios: 'ADMIN',
   verusuario: 'ADMIN',
 
-  // Usuario
   registrar: 'USUARIO',
   credito: 'USUARIO',
   perfil: 'USUARIO',
   comprar: 'USUARIO',
 
-  // General / info del bot
   menu: 'GENERAL',
   help: 'GENERAL',
   info: 'GENERAL',
   ping: 'GENERAL',
 
-  // Consultas
   ag: 'CONSULTAS',
   denuncias: 'CONSULTAS',
   dir: 'CONSULTAS',
@@ -65,10 +61,8 @@ const categoriaPorComando = {
   vv: 'CONSULTAS'
 }
 
-// Orden en que se muestran las categorías en el menú
 const ordenCategorias = ['ADMIN', 'USUARIO', 'GENERAL', 'CONSULTAS', 'OTROS']
 
-// Emoji por categoría
 const emojiCategoria = {
   ADMIN: '🧑‍💻',
   USUARIO: '🕵️',
@@ -82,9 +76,9 @@ export default {
   description: 'Muestra el menú de comandos',
   exec: async ({ sock, from, msg, sender }) => {
     // --- Verificar registro antes de mostrar el menú ---
-    const users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}')
+    const usuario = await User.findOne({ numero: sender })
 
-    if (!users[sender]) {
+    if (!usuario) {
       return sock.sendMessage(from, {
         text: `╔═══📝 *REGISTRO REQUERIDO* 📝═══
 ║
@@ -103,7 +97,6 @@ export default {
     const version = botConfig.version || '1.0.0'
     const commandList = getUniquePlugins()
 
-    // --- Agrupar comandos por categoría (usando el mapa manual) ---
     const categorias = {}
     for (const p of commandList) {
       const cmdPrincipal = p.command[0]
@@ -132,7 +125,6 @@ export default {
       const emoji = emojiCategoria[cat] || '📂'
       bloquesCategorias += `┌─ ${emoji} *${cat}*\n${items}\n└────────────────\n\n`
     }
-    // ----------------------------------------------------------
 
     const caption = `🐾 〔 *${botConfig.botName}* 〕🐾
    _Bot inteligente de consultas_
