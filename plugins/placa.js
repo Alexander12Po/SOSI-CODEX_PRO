@@ -8,11 +8,12 @@ export default {
 
     // Validación básica de que ingresó un texto
     if (!placa) {
-      return sock.sendMessage(
+      await sock.sendMessage(
         from,
         { text: '❌ *Uso incorrecto.*\nDebes ingresar un número de placa válido.\n\n*Ejemplo:* .placa D5G960' },
         { quoted: msg }
       )
+      return false
     }
 
     // Limpiamos la placa: la pasamos a mayúsculas y quitamos guiones por si el usuario escribe "D5G-960"
@@ -35,11 +36,12 @@ export default {
 
       // Verificar si la consulta fue exitosa
       if (!response.success || !response.data) {
-        return sock.sendMessage(
+        await sock.sendMessage(
           from,
           { text: '❌ No se encontró información para la placa ingresada o no existe.' },
           { quoted: msg }
         )
+        return false
       }
 
       const info = response.data
@@ -79,6 +81,7 @@ export default {
         { text: `❌ *Error en la consulta:*\n${errorDeApi}` },
         { quoted: msg }
       )
+      return false
     }
   }
 }
