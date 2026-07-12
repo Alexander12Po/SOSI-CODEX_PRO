@@ -29,7 +29,15 @@ export default {
 
     // Verificar que quien ejecuta sea admin del grupo
     const metadata = await sock.groupMetadata(from)
-    const participante = metadata.participants.find(p => p.id === sender)
+
+    const numeroSender = sender.split('@')[0].split(':')[0]
+
+    const participante = metadata.participants.find(p => {
+      const numeroId = p.id?.split('@')[0].split(':')[0]
+      const numeroLid = p.lid?.split('@')[0].split(':')[0]
+      return numeroId === numeroSender || numeroLid === numeroSender
+    })
+
     const esAdminGrupo = participante && (participante.admin === 'admin' || participante.admin === 'superadmin')
 
     if (!esAdminGrupo) {
