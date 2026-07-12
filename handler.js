@@ -80,10 +80,10 @@ export async function handler(sock, m) {
   const senderRaw = msg.key.participantAlt || msg.key.participant || msg.key.remoteJidAlt || msg.key.remoteJid;
   const sender = normalizarJid(senderRaw);
 
-  // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
+  // Costo real del comando
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
 
-  // --- VERIFICAR REGISTRO Y CRÉDITOS (sin cobrar todavía) ---
+  // --- VERIFICAR REGISTRO Y CRÉDITOS ---
   const usuarioActual = await User.findOne({ numero: sender });
 
   if (!comandosLibres.includes(cmdName) && costo > 0) {
@@ -107,7 +107,6 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
       }, { quoted: msg });
     }
   } else if (!comandosLibres.includes(cmdName) && costo === 0) {
-    // Comando gratis (ej: vv) pero sigue requiriendo registro
     if (!usuarioActual) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
     }
@@ -116,9 +115,11 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
 
   try {
     await sock.sendMessage(from, { react: { text: '📩', key: msg.key } });
-    const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
+    
+    // Ejecutamos pasando el usuario actual y el costo del comando
+    const resultado = await plugin.exec({ sock, msg, from, args, sender, body, usuarioActual, costo });
 
-    // Solo cobrar si el plugin no devolvió explícitamente "false" (consulta fallida)
+    // Solo cobrar si el plugin no devolvió explícitamente "false"
     const consultaExitosa = resultado !== false;
 
     if (!comandosLibres.includes(cmdName) && costo > 0 && consultaExitosa) {
@@ -127,7 +128,11 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
         { $inc: { creditos: -costo } },
         { new: true }
       );
-      await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usuarioActualizado.creditos}*` });
+      
+      // Si el plugin devuelve 'silent', omitimos este mensaje porque el plugin ya mostró el saldo de forma estética
+      if (resultado !== 'silent') {
+        await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usuarioActualizado.creditos}*` });
+      }
     }
   } catch (err) {
     console.error(`Error ejecutando "${cmdName}":`, err);
