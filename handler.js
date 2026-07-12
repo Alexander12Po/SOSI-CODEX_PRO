@@ -15,10 +15,8 @@ function normalizarJid(jid) {
   return numero + '@s.whatsapp.net';
 }
 
-// Conectar a la base de datos al arrancar
 await connectDB();
 
-// Comandos que NUNCA cobran ni requieren registro
 const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'comprar', 'addcredito', 'setcredito', 'listausuarios', 'usuarios', 'verusuario'];
 
 export const plugins = new Map();
@@ -80,10 +78,7 @@ export async function handler(sock, m) {
   const senderRaw = msg.key.participantAlt || msg.key.participant || msg.key.remoteJidAlt || msg.key.remoteJid;
   const sender = normalizarJid(senderRaw);
 
-  // Costo real del comando
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
-
-  // --- VERIFICAR REGISTRO Y CRÉDITOS ---
   const usuarioActual = await User.findOne({ numero: sender });
 
   if (!comandosLibres.includes(cmdName) && costo > 0) {
@@ -93,17 +88,7 @@ export async function handler(sock, m) {
 
     if (usuarioActual.creditos < costo) {
       return await sock.sendMessage(from, {
-        text: `⚠️ ¡Tus créditos se han agotado!
-
-Ya no cuentas con créditos suficientes para realizar más consultas.
-
-💳 Recarga tus créditos escribiendo al +51 924 894 999.
-
-📋 Para ver el catálogo de paquetes y precios, utiliza el comando:
-
-.comprar
-
-¡Recarga y continúa disfrutando del servicio! 🚀`
+        text: `⚠️ ¡Tus créditos se han agotado!\n\nYa no cuentas con créditos suficientes para realizar más consultas.\n\n💳 Recarga tus créditos escribiendo al +51 924 894 999.\n\n📋 Para ver el catálogo de paquetes y precios, utiliza el comando:\n\n.comprar\n\n¡Recarga y continúa disfrutando del servicio! 🚀`
       }, { quoted: msg });
     }
   } else if (!comandosLibres.includes(cmdName) && costo === 0) {
@@ -111,27 +96,51 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
     }
   }
-  // -------------------------------------
 
   try {
     await sock.sendMessage(from, { react: { text: '📩', key: msg.key } });
     
-    // Ejecutamos pasando el usuario actual y el costo del comando
-    const resultado = await plugin.exec({ sock, msg, from, args, sender, body, usuarioActual, costo });
+    const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
 
-    // Solo cobrar si el plugin no devolvió explícitamente "false"
-    const consultaExitosa = resultado !== false;
+    if (resultado === false) return;
 
-    if (!comandosLibres.includes(cmdName) && costo > 0 && consultaExitosa) {
+    if (!comandosLibres.includes(cmdName) && costo > 0) {
+      // Descontar saldo real de forma precisa
       const usuarioActualizado = await User.findOneAndUpdate(
         { numero: sender },
         { $inc: { creditos: -costo } },
         { new: true }
       );
+
+      const usuarioTag = `@${sender.split('@')[0]}`;
       
-      // Si el plugin devuelve 'silent', omitimos este mensaje porque el plugin ya mostró el saldo de forma estética
-      if (resultado !== 'silent') {
-        await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usuarioActualizado.creditos}*` });
+      // Diseño del bloque final exacto solicitado por el usuario
+      const bloquePremium = `\n\n╔════════════════════════════╗
+║        💎 MI CUENTA        ║
+╠════════════════════════════╣
+║ 👤 Usuario  : ${usuarioTag}${' '.repeat(Math.max(0, 11 - usuarioTag.length))}║
+║ 💰 Créditos : ${usuarioActualizado.creditos}${' '.repeat(Math.max(0, 14 - String(usuarioActualizado.creditos).length))}║
+║ 🏆 Plan     : PREMIUM      ║
+╚════════════════════════════╝
+
+╭────────────────────────────╮
+│ ⚡ Powered by SOSI CODEX ★ │
+│ 🔒 Sistema de Consultas VIP│
+│ © 2026 • Todos los derechos│
+╰────────────────────────────╯`;
+
+      if (resultado.image) {
+        resultado.caption += bloquePremium;
+        await sock.sendMessage(from, { image: resultado.image, caption: resultado.caption, mentions: [sender] }, { quoted: msg });
+      } else if (resultado.text) {
+        resultado.text += bloquePremium;
+        await sock.sendMessage(from, { text: resultado.text, mentions: [sender] }, { quoted: msg });
+      }
+    } else {
+      if (resultado.image) {
+        await sock.sendMessage(from, { image: resultado.image, caption: resultado.caption }, { quoted: msg });
+      } else if (resultado.text) {
+        await sock.sendMessage(from, { text: resultado.text }, { quoted: msg });
       }
     }
   } catch (err) {
