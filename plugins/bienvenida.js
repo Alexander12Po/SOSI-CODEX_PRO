@@ -74,8 +74,19 @@ export async function handleGroupParticipantsUpdate(sock, update) {
   const config = getConfigGrupos()
   if (!config[id]) return // Si no está activada (true), no hace nada
 
-  for (const participant of participants) {
+  for (const raw of participants) {
     try {
+      // A veces 'participants' no trae strings puros, sino objetos { id, lid, ... }
+      // dependiendo de la versión de Baileys. Normalizamos siempre a string.
+      const participant = typeof raw === 'string'
+        ? raw
+        : (raw?.id || raw?.jid || raw?.lid || null)
+
+      if (!participant || typeof participant !== 'string') {
+        console.error('Error en bienvenida: participante con formato inesperado ->', JSON.stringify(raw))
+        continue
+      }
+
       const userInfo = await sock.onWhatsApp(participant)
       if (!userInfo || userInfo.length === 0) continue
 
