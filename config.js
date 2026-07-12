@@ -6,7 +6,8 @@ export const botConfig = {
   loginMethod: 'qr', // 👈 'qr' o 'pairing'
   admins: [
     '51924894999@s.whatsapp.net',
-    '150217101992062@s.whatsapp.net'
+    '150217101992062@s.whatsapp.net',
+    '35932300406789@s.whatsapp.net'
   ],
   version: '1.0.0'
 }
