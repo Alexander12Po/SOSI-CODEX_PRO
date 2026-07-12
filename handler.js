@@ -13,12 +13,6 @@ function normalizarJid(jid) {
   return numero + '@s.whatsapp.net';
 }
 
-// --- Número del administrador (único autorizado a usar comandos admin) ---
-const ADMIN_JID = '51924894999@s.whatsapp.net';
-
-// Comandos exclusivos del admin
-const comandosAdmin = ['addcredito', 'setcredito'];
-
 // --- Helpers para Usuarios ---
 const getUsers = () => {
   if (!fs.existsSync('./users.json')) return {};
@@ -31,7 +25,7 @@ const saveUsers = (data) => {
 // -----------------------------
 
 // Comandos que NUNCA cobran ni requieren registro
-const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'comprar', 'addcredito', 'setcredito'];
+const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'comprar', 'addcredito', 'setcredito', 'listausuarios', 'usuarios', 'verusuario'];
 
 export const plugins = new Map();
 
@@ -93,12 +87,6 @@ export async function handler(sock, m) {
   const sender = normalizarJid(senderRaw);
   const users = getUsers();
 
-  // --- RESTRICCIÓN DE COMANDOS ADMIN ---
-  if (comandosAdmin.includes(cmdName) && sender !== ADMIN_JID) {
-    return await sock.sendMessage(from, { text: '⛔ Este comando es exclusivo del administrador.' }, { quoted: msg });
-  }
-  // --------------------------------------
-
   // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
 
@@ -148,4 +136,4 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
     console.error(`Error ejecutando "${cmdName}":`, err);
     await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
   }
-}
+    }
