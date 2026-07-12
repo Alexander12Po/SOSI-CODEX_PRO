@@ -1,11 +1,10 @@
-import fs from 'fs';
+import User from '../models/User.js';
 
 export default {
   command: ['credito', 'perfil'],
   description: 'Muestra tu perfil y créditos disponibles',
   exec: async ({ sock, from, msg, sender }) => {
-    const users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}');
-    const user = users[sender];
+    const user = await User.findOne({ numero: sender });
 
     if (!user) {
       return sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña`.' }, { quoted: msg });
