@@ -31,6 +31,9 @@ const categoriaPorComando = {
   // Admin
   addcredito: 'ADMIN',
   setcredito: 'ADMIN',
+  listausuarios: 'ADMIN',
+  usuarios: 'ADMIN',
+  verusuario: 'ADMIN',
 
   // Usuario
   registrar: 'USUARIO',
