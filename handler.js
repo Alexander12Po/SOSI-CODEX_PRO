@@ -103,28 +103,30 @@ export async function handler(sock, m) {
     // Ejecutamos el plugin
     const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
 
-    // Si hubo error de validación interna en el plugin, se detiene
+    // Si hubo error y el plugin retornó false, detenemos sin cobrar.
     if (resultado === false) return;
 
-    // Descontamos en la Base de Datos si cuesta créditos
-    let creditosActualizados = null;
-    if (!comandosLibres.includes(cmdName) && costo > 0) {
-      const usuarioActualizado = await User.findOneAndUpdate(
-        { numero: sender },
-        { $inc: { creditos: -costo } },
-        { new: true }
-      );
-      creditosActualizados = usuarioActualizado.creditos;
-    }
-
-    // SOLO si el plugin retornó un objeto {text: ...} o {image: ...} adjuntamos el pie de página
+    // Solo cobramos y agregamos créditos si es un comando de pago y el plugin devolvió un mensaje válido
     if (resultado && typeof resultado === 'object' && (resultado.text || resultado.image)) {
+      
+      let creditosActualizados = usuarioActual ? usuarioActual.creditos : 0;
       let infoCreditos = '';
+
       if (!comandosLibres.includes(cmdName) && costo > 0) {
+        // Cobro en la base de datos
+        const usuarioActualizado = await User.findOneAndUpdate(
+          { numero: sender },
+          { $inc: { creditos: -costo } },
+          { new: true }
+        );
+        creditosActualizados = usuarioActualizado.creditos;
+        
+        // Formato final de los créditos
         const usuarioTag = `@${sender.split('@')[0]}`;
         infoCreditos = `\n\n─── *SOSI CODEX* ★ ───\n💳 *CRÉDITOS:* ${creditosActualizados}\n👤 *USUARIO:* ${usuarioTag}`;
       }
 
+      // Concatenamos y enviamos el mensaje final
       if (resultado.image) {
         const captionFinal = (resultado.caption || '') + infoCreditos;
         await sock.sendMessage(from, { image: resultado.image, caption: captionFinal, mentions: [sender] }, { quoted: msg });
@@ -133,7 +135,7 @@ export async function handler(sock, m) {
         await sock.sendMessage(from, { text: textFinal, mentions: [sender] }, { quoted: msg });
       }
     }
-    // Si no retorna un objeto (ej: .credito, .registrar), no hacemos nada más, ya que el plugin se envió a sí mismo.
+    // Si 'resultado' es undefined (como pasa con .registrar o .credito), simplemente termina con éxito sin colapsar.
 
   } catch (err) {
     console.error(`Error ejecutando "${cmdName}":`, err);
