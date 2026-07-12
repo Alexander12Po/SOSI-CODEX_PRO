@@ -1,5 +1,5 @@
 import { botConfig } from '../config.js';
-import fs from 'fs';
+import User from '../models/User.js';
 
 export default {
   command: ['listausuarios', 'usuarios'],
@@ -9,18 +9,18 @@ export default {
       return sock.sendMessage(from, { text: '❌ No tienes permiso para usar este comando.' }, { quoted: msg });
     }
 
-    const users = JSON.parse(fs.existsSync('./users.json') ? fs.readFileSync('./users.json', 'utf-8') : '{}');
-    const entradas = Object.entries(users);
+    const usuarios = await User.find().sort({ nombre: 1 });
 
-    if (entradas.length === 0) {
+    if (usuarios.length === 0) {
       return sock.sendMessage(from, { text: '📭 No hay usuarios registrados todavía.' }, { quoted: msg });
     }
 
     let texto = `╔═══👥 *USUARIOS REGISTRADOS* 👥═══\n║\n`;
-    entradas.forEach(([numero, datos], i) => {
-      texto += `║ ${i + 1}. *${datos.nombre}*\n║    📱 ${numero}\n║    💰 ${datos.creditos} créditos\n║    📅 ${datos.fecha}\n║\n`;
+    usuarios.forEach((datos, i) => {
+      const numeroLimpio = datos.numero.split('@')[0];
+      texto += `║ ${i + 1}. *${datos.nombre}*\n║    📱 ${numeroLimpio}\n║    💰 ${datos.creditos} créditos\n║    📅 ${datos.fecha}\n║\n`;
     });
-    texto += `╚═══ Total: ${entradas.length} usuario(s) ═══╝`;
+    texto += `╚═══ Total: ${usuarios.length} usuario(s) ═══╝`;
 
     sock.sendMessage(from, { text: texto }, { quoted: msg });
   }
