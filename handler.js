@@ -105,7 +105,6 @@ export async function handler(sock, m) {
     if (resultado === false) return;
 
     if (!comandosLibres.includes(cmdName) && costo > 0) {
-      // Descontar saldo real de forma precisa
       const usuarioActualizado = await User.findOneAndUpdate(
         { numero: sender },
         { $inc: { creditos: -costo } },
@@ -114,26 +113,14 @@ export async function handler(sock, m) {
 
       const usuarioTag = `@${sender.split('@')[0]}`;
       
-      // Diseño del bloque final exacto solicitado por el usuario
-      const bloquePremium = `\n\n╔════════════════════════════╗
-║        💎 MI CUENTA        ║
-╠════════════════════════════╣
-║ 👤 Usuario  : ${usuarioTag}${' '.repeat(Math.max(0, 11 - usuarioTag.length))}║
-║ 💰 Créditos : ${usuarioActualizado.creditos}${' '.repeat(Math.max(0, 14 - String(usuarioActualizado.creditos).length))}║
-║ 🏆 Plan     : PREMIUM      ║
-╚════════════════════════════╝
-
-╭────────────────────────────╮
-│ ⚡ Powered by SOSI CODEX ★ │
-│ 🔒 Sistema de Consultas VIP│
-│ © 2026 • Todos los derechos│
-╰────────────────────────────╯`;
+      // Pie de página limpio con los créditos
+      const infoCreditos = `\n\n─── *SOSI CODEX* ★ ───\n💳 *CRÉDITOS:* ${usuarioActualizado.creditos}\n👤 *USUARIO:* ${usuarioTag}`;
 
       if (resultado.image) {
-        resultado.caption += bloquePremium;
+        resultado.caption += infoCreditos;
         await sock.sendMessage(from, { image: resultado.image, caption: resultado.caption, mentions: [sender] }, { quoted: msg });
       } else if (resultado.text) {
-        resultado.text += bloquePremium;
+        resultado.text += infoCreditos;
         await sock.sendMessage(from, { text: resultado.text, mentions: [sender] }, { quoted: msg });
       }
     } else {
