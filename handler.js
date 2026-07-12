@@ -93,17 +93,29 @@ export async function handler(sock, m) {
 
     if (usuarioActual.creditos < costo) {
       return await sock.sendMessage(from, {
-        text: `⚠️ ¡Tus créditos se han agotado!
+        text: `╭══════════════════════╮
+│ ⚠️ SOSI CODEX ALERTA │
+╰══════════════════════╯
 
-Ya no cuentas con créditos suficientes para realizar más consultas.
+🚫 *Créditos agotados*
 
-💳 Recarga tus créditos escribiendo al +51 924 894 999.
+Hola, tu saldo de créditos ya no es
+suficiente para realizar más consultas.
 
-📋 Para ver el catálogo de paquetes y precios, utiliza el comando:
+╭──────── 💎 RECARGA ────────╮
+│ 💳 Recarga tus créditos:
+│ 📲 +51 924 894 999
+╰────────────────────────────╯
 
-.comprar
+🛒 Para ver los paquetes disponibles
+y precios utiliza:
 
-¡Recarga y continúa disfrutando del servicio! 🚀`
+➜ *.comprar*
+
+━━━━━━━━━━━━━━━━━━
+
+⚡ Recarga y continúa usando
+🤖 *SOSI CODEX* sin límites.`
       }, { quoted: msg });
     }
   } else if (!comandosLibres.includes(cmdName) && costo === 0) {
@@ -133,4 +145,4 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
     console.error(`Error ejecutando "${cmdName}":`, err);
     await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
   }
-  }
+}
