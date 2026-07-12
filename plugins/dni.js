@@ -13,14 +13,16 @@ export default {
         { text: '❌ Debes ingresar un DNI válido de 8 dígitos.\n\nEjemplo: *.dni 12345678*' },
         { quoted: msg }
       )
-      return false
+      return false // 👈 Evita el cobro por error de formato
     }
 
+    // Tu token directo
     const token = 'jmdCRmBLZ13ITSmUGCWcBnDcTuOddttU7d0UbL8S7HJNelk8loSpnVkUyFJO'
 
     try {
       await sock.sendMessage(from, { text: '🔎 Consultando información detallada...' }, { quoted: msg })
 
+      // Petición a la nueva API
       const { data: response } = await axios.get(`https://api-codart.cgrt.org/api/v1/consultas/fd/dni/${dni}`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -29,18 +31,19 @@ export default {
         }
       })
 
+      // Verificar si la consulta fue exitosa
       if (!response.success || !response.data) {
         await sock.sendMessage(
           from,
           { text: '❌ No se encontraron resultados para ese DNI.' },
           { quoted: msg }
         )
-        return false
+        return false // 👈 Evita el cobro si el DNI no existe en la base de datos
       }
 
       const userData = response.data
 
-      // Construcción del mensaje original y completo que te gusta
+      // Construcción del mensaje con TODOS los datos disponibles
       const text = `┌─❐ *DATOS DEL CIUDADANO* ❐
 │
 │ 🆔 *DNI:* ${userData.dni.completo}
@@ -70,13 +73,17 @@ export default {
 │
 └────────────`
 
-      // IMPORTANTE: Retornamos los datos para que el handler añada los créditos abajo
+      // Verificar si la API devolvió la imagen en Base64
       if (userData.images && userData.images.length > 0 && userData.images[0].data_uri) {
+        // Extraer solo la parte base64 de la URI
         const base64Data = userData.images[0].data_uri.split(',')[1]
         const imageBuffer = Buffer.from(base64Data, 'base64')
-        return { image: imageBuffer, caption: text }
+
+        // Enviar imagen con el texto completo
+        await sock.sendMessage(from, { image: imageBuffer, caption: text }, { quoted: msg })
       } else {
-        return { text: text }
+        // Si no hay imagen, solo enviar el texto
+        await sock.sendMessage(from, { text }, { quoted: msg })
       }
 
     } catch (err) {
@@ -86,7 +93,7 @@ export default {
         { text: '❌ Ocurrió un error al consultar. Verifica el número de DNI o si el servicio está disponible.' },
         { quoted: msg }
       )
-      return false
+      return false // 👈 Evita el cobro si la API se cae o da error 500
     }
   }
-          }
+}
