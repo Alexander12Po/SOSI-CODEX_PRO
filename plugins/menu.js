@@ -8,18 +8,6 @@ import User from '../models/User.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const startTime = Date.now()
-
-function formatUptime(ms) {
-  const totalSeconds = Math.floor(ms / 1000)
-  const h = Math.floor(totalSeconds / 3600)
-  const m = Math.floor((totalSeconds % 3600) / 60)
-  const s = totalSeconds % 60
-  if (h > 0) return `${h}h ${m}m ${s}s`
-  if (m > 0) return `${m}m ${s}s`
-  return `${s}s`
-}
-
 function limpiarNombre(nombre) {
   if (!nombre) return 'Usuario'
   const primeraPalabra = nombre.trim().split(/\s+/)[0]
@@ -64,11 +52,36 @@ const categoriaPorComando = {
 const ordenCategorias = ['ADMIN', 'USUARIO', 'GENERAL', 'CONSULTAS', 'OTROS']
 
 const emojiCategoria = {
-  ADMIN: '🧑‍💻',
-  USUARIO: '🕵️',
-  GENERAL: 'ℹ️',
-  CONSULTAS: '📂',
+  ADMIN: '👑',
+  USUARIO: '👤',
+  GENERAL: '🌐',
+  CONSULTAS: '🔎',
   OTROS: '📦'
+}
+
+// Emoji sugerido por comando (si no está aquí, usa uno genérico)
+const emojiComando = {
+  addcredito: '💳',
+  listausuarios: '👥',
+  registrar: '📝',
+  credito: '💎',
+  comprar: '🛒',
+  menu: '📖',
+  info: '🤖',
+  ping: '🏓',
+  dni: '🪪',
+  nm: '👤',
+  telp: '📱',
+  placa: '🚗',
+  dir: '🏠',
+  ag: '🌳',
+  sueldo: '💼',
+  soat: '🛡️',
+  fiscalia: '⚖️',
+  denuncias: '🚨',
+  rfm: '📂',
+  vv: '👁️',
+  dnielectronico: '💳'
 }
 
 export default {
@@ -92,11 +105,10 @@ export default {
     // ----------------------------------------------------
 
     const { getUniquePlugins } = await import('../handler.js')
-    const nombre = limpiarNombre(msg.pushName)
-    const uptime = formatUptime(Date.now() - startTime)
-    const version = botConfig.version || '1.0.0'
+    const nombre = limpiarNombre(usuario.nombre || msg.pushName)
     const commandList = getUniquePlugins()
 
+    // --- Agrupar comandos por categoría ---
     const categorias = {}
     for (const p of commandList) {
       const cmdPrincipal = p.command[0]
@@ -110,37 +122,42 @@ export default {
       const plugins = categorias[cat]
       if (!plugins || plugins.length === 0) continue
 
+      const emoji = emojiCategoria[cat] || '📂'
+      const tituloLinea = `╭──── ${emoji} ${cat} ────╮`
+      const cierreLinea = '╰' + '─'.repeat(tituloLinea.length - 2) + '╯'
+
       const items = plugins
         .map(p => {
           const cmdPrincipal = p.command[0]
+          const emojiCmd = emojiComando[cmdPrincipal] || '✧'
           const costo = costoPorComando.hasOwnProperty(cmdPrincipal) ? costoPorComando[cmdPrincipal] : null
           let etiquetaCosto = ''
-          if (costo === 0) etiquetaCosto = ' 🆓 Gratis'
-          else if (costo !== null) etiquetaCosto = ` 💰 ${costo} crédito${costo === 1 ? '' : 's'}`
+          if (costo === 0) etiquetaCosto = ' 🆓'
+          else if (costo !== null) etiquetaCosto = ` 💰${costo}`
 
-          return `│ ✧ *${botConfig.prefix}${cmdPrincipal}*${etiquetaCosto}\n│    ${p.description}`
+          return `│ ${emojiCmd} .${cmdPrincipal}${etiquetaCosto}\n│ ➜ ${p.description}\n│`
         })
         .join('\n')
 
-      const emoji = emojiCategoria[cat] || '📂'
-      bloquesCategorias += `┌─ ${emoji} *${cat}*\n${items}\n└────────────────\n\n`
+      bloquesCategorias += `${tituloLinea}\n${items}\n${cierreLinea}\n\n`
     }
+    // ----------------------------------------------------------
 
-    const caption = `🐾 〔 *${botConfig.botName}* 〕🐾
-   _Bot inteligente de consultas_
-━━━━━━━━━━━━━━━━━━━━
+    const caption = `╔════════════════════╗
+║ 🤖 ${botConfig.botName}
+║ 🇵🇪 CONSULTAS PERÚ
+╚════════════════════╝
 
-👋 ¡Hola, *${nombre}*!
+╭──── 👤 PERFIL ────╮
+│ Hola: *${nombre}*
+│ 💎 Créditos: ${usuario.creditos}
+│ 🟢 Estado: ONLINE
+╰───────────────────╯
 
-┌─ 📊 *ESTADO*
-│ ⚙️ Versión   : ${version}
-│ 🔧 Prefijo   : [ ${botConfig.prefix} ]
-│ ⏱️ Activo    : ${uptime}
-│ 📦 Comandos  : ${commandList.length}
-└────────────────
-
-${bloquesCategorias}━━━━━━━━━━━━━━━━━━━━
-🐾 *${botConfig.botName}* © ${new Date().getFullYear()} — Todos los derechos reservados`
+${bloquesCategorias}╭───────────────────╮
+│ 🔰 ${botConfig.botName} VIP
+│ ⚡ Sistema activo
+╰───────────────────╯`
 
     const esURL = /^https?:\/\//i.test(botConfig.menuImage)
 
