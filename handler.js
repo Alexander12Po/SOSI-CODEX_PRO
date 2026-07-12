@@ -19,7 +19,7 @@ function normalizarJid(jid) {
 await connectDB();
 
 // Comandos que NUNCA cobran ni requieren registro
-const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'comprar', 'addcredito', 'setcredito', 'listausuarios', 'usuarios', 'verusuario'];
+const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'comprar', 'addcredito', 'setcredito', 'listausuarios', 'usuarios', 'verusuario', 'bienvenida'];
 
 export const plugins = new Map();
 
