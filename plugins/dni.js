@@ -39,38 +39,33 @@ export default {
 
       const userData = response.data
 
-      let edadLimpia = userData.nacimiento.edad || '---'
-      if (!edadLimpia.toLowerCase().includes('años')) {
-        edadLimpia = `${edadLimpia} AÑOS`
-      }
-
-      // Estructura clásica con información completa sin filtros que corten texto
-      const text = `┌─❐ *SOSI CODEX* → *DATOS DEL CIUDADANO* ❐
+      // Estructura exacta solicitada
+      const text = `┌─❐ *DATOS DEL CIUDADANO* ❐
 │
 │ 🆔 *DNI:* ${userData.dni.completo || dni}
-│ 👤 *Nombres:* ${userData.nombres}
-│ 👥 *Apellidos:* ${userData.apellidos}
-│ ⚧️ *Género:* ${userData.genero.toUpperCase()}
+│ 👤 *Nombres:* ${userData.nombres || '---'}
+│ 👥 *Apellidos:* ${userData.apellidos || '---'}
+│ ⚧️ *Género:* ${userData.genero || '---'}
 │
-│ 🎂 *Nacimiento:* ${userData.nacimiento.fecha} (${edadLimpia.toUpperCase()})
-│ 🌍 *Lugar Nac.:* ${userData.nacimiento.distrito}, ${userData.nacimiento.provincia}, ${userData.nacimiento.departamento}
+│ 🎂 *Nacimiento:* ${userData.nacimiento.fecha || '---'} (${userData.nacimiento.edad || '---'})
+│ 🌍 *Lugar Nac.:* ${userData.nacimiento.distrito || '---'}, ${userData.nacimiento.provincia || '---'}, ${userData.nacimiento.departamento || '---'}
 │
-│ 👨‍👦 *Padre:* ${userData.informacion_general.padre}
-│ 👩‍👦 *Madre:* ${userData.informacion_general.madre}
-│ 💍 *Estado Civil:* ${userData.informacion_general.estado_civil.toUpperCase()}
-│ 🎓 *Educación:* ${userData.informacion_general.nivel_educativo.toUpperCase()}
+│ 👨‍👦 *Padre:* ${userData.informacion_general.padre || '---'}
+│ 👩‍👦 *Madre:* ${userData.informacion_general.madre || '---'}
+│ 💍 *Estado Civil:* ${userData.informacion_general.estado_civil || '---'}
+│ 🎓 *Educación:* ${userData.informacion_general.nivel_educativo || '---'}
 │
-│ 📍 *Dirección:* ${userData.domicilio.direccion}
-│ 🗺️ *Residencia:* ${userData.domicilio.distrito}, ${userData.domicilio.provincia}, ${userData.domicilio.departamento}
-│ 📌 *Ubigeo (RENIEC):* ${userData.ubigeos.reniec}
+│ 📍 *Dirección:* ${userData.domicilio.direccion || '---'}
+│ 🗺️ *Residencia:* ${userData.domicilio.distrito || '---'}, ${userData.domicilio.provincia || '---'}, ${userData.domicilio.departamento || '---'}
+│ 📌 *Ubigeo (RENIEC):* ${userData.ubigeos.reniec || '---'}
 │
-│ 📏 *Estatura:* ${userData.informacion_general.estatura}
-│ ❤️ *Donante Órganos:* ${userData.informacion_general.donante_organos.toUpperCase()}
-│ ⚠️ *Restricciones:* ${userData.informacion_general.restriccion.toUpperCase()}
+│ 📏 *Estatura:* ${userData.informacion_general.estatura || '---'}
+│ ❤️ *Donante Órganos:* ${userData.informacion_general.donante_organos || '---'}
+│ ⚠️ *Restricciones:* ${userData.informacion_general.restriccion || '---'}
 │
-│ 📅 *F. Inscripción:* ${userData.informacion_general.fecha_inscripcion}
-│ 📅 *F. Emisión:* ${userData.informacion_general.fecha_emision}
-│ ⏳ *F. Caducidad:* ${userData.informacion_general.fecha_caducidad}
+│ 📅 *F. Inscripción:* ${userData.informacion_general.fecha_inscripcion || '---'}
+│ 📅 *F. Emisión:* ${userData.informacion_general.fecha_emision || '---'}
+│ ⏳ *F. Caducidad:* ${userData.informacion_general.fecha_caducidad || '---'}
 │
 └────────────`
 
