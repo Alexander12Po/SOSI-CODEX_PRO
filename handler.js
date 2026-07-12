@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { botConfig } from './config.js';
 import { obtenerCosto } from './costos.js';
+import { connectDB } from './database.js';
+import User from './models/User.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,16 +15,8 @@ function normalizarJid(jid) {
   return numero + '@s.whatsapp.net';
 }
 
-// --- Helpers para Usuarios ---
-const getUsers = () => {
-  if (!fs.existsSync('./users.json')) return {};
-  return JSON.parse(fs.readFileSync('./users.json', 'utf-8'));
-};
-
-const saveUsers = (data) => {
-  fs.writeFileSync('./users.json', JSON.stringify(data, null, 2));
-};
-// -----------------------------
+// Conectar a la base de datos al arrancar
+await connectDB();
 
 // Comandos que NUNCA cobran ni requieren registro
 const comandosLibres = ['registrar', 'menu', 'help', 'credito', 'perfil', 'comprar', 'addcredito', 'setcredito', 'listausuarios', 'usuarios', 'verusuario'];
@@ -85,18 +79,19 @@ export async function handler(sock, m) {
 
   const senderRaw = msg.key.participant || msg.key.remoteJid;
   const sender = normalizarJid(senderRaw);
-  const users = getUsers();
 
   // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
 
   // --- VERIFICAR REGISTRO Y CRÉDITOS (sin cobrar todavía) ---
+  const usuarioActual = await User.findOne({ numero: sender });
+
   if (!comandosLibres.includes(cmdName) && costo > 0) {
-    if (!users[sender]) {
+    if (!usuarioActual) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
     }
 
-    if (users[sender].creditos < costo) {
+    if (usuarioActual.creditos < costo) {
       return await sock.sendMessage(from, {
         text: `⚠️ ¡Tus créditos se han agotado!
 
@@ -113,7 +108,7 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
     }
   } else if (!comandosLibres.includes(cmdName) && costo === 0) {
     // Comando gratis (ej: vv) pero sigue requiriendo registro
-    if (!users[sender]) {
+    if (!usuarioActual) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
     }
   }
@@ -127,13 +122,15 @@ Ya no cuentas con créditos suficientes para realizar más consultas.
     const consultaExitosa = resultado !== false;
 
     if (!comandosLibres.includes(cmdName) && costo > 0 && consultaExitosa) {
-      const usersActualizados = getUsers();
-      usersActualizados[sender].creditos -= costo;
-      saveUsers(usersActualizados);
-      await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usersActualizados[sender].creditos}*` });
+      const usuarioActualizado = await User.findOneAndUpdate(
+        { numero: sender },
+        { $inc: { creditos: -costo } },
+        { new: true }
+      );
+      await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usuarioActualizado.creditos}*` });
     }
   } catch (err) {
     console.error(`Error ejecutando "${cmdName}":`, err);
     await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
   }
-    }
+}
