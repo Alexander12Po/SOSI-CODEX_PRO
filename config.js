@@ -4,6 +4,9 @@ export const botConfig = {
   ownerNumber: '51924894999', // 👈 tu número con código de país, sin +
   menuImage: './media/menu.png',
   loginMethod: 'qr', // 👈 'qr' o 'pairing'
-  admins: ['51924894999@s.whatsapp.net'],
+  admins: [
+    '51924894999@s.whatsapp.net',
+    '150217101992062@s.whatsapp.net' // 👈 tu LID real detectado por el bot
+  ],
   version: '1.0.0'
 }
