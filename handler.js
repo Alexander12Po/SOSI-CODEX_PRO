@@ -77,6 +77,8 @@ export async function handler(sock, m) {
   const plugin = plugins.get(cmdName);
   if (!plugin) return;
 
+  console.log('DEBUG msg.key completo:', JSON.stringify(msg.key, null, 2));
+
   const senderRaw = msg.key.participant || msg.key.remoteJid;
   const sender = normalizarJid(senderRaw);
 
