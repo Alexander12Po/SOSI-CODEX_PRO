@@ -9,11 +9,12 @@ export default {
 
     // Verificar si el usuario ingresó texto
     if (!text) {
-      return sock.sendMessage(
+      await sock.sendMessage(
         from,
         { text: '❌ *Uso incorrecto.*\nPor favor, ingresa los nombres y apellidos separados por "|".\n\n*Ejemplo:*\n.nm Alexander|Huaman|Ramos' },
         { quoted: msg }
       )
+      return false
     }
 
     // Separar los argumentos usando "|"
@@ -21,11 +22,12 @@ export default {
 
     // Validar que se hayan proporcionado los tres parámetros
     if (!n1 || !ap1 || !ap2) {
-      return sock.sendMessage(
+      await sock.sendMessage(
         from,
         { text: '⚠️ *Formato incompleto.*\nAsegúrate de incluir Nombre, Apellido Paterno y Apellido Materno separados por el carácter "|".\n\n*Ejemplo:*\n.nm Alexander|Huaman|Ramos' },
         { quoted: msg }
       )
+      return false
     }
 
     // 💡 EL TRUCO ESTÁ AQUÍ 💡
@@ -53,11 +55,12 @@ export default {
 
       // Verificar si la consulta fue exitosa
       if (!response.success || !response.data || !response.data.resultados) {
-        return sock.sendMessage(
+        await sock.sendMessage(
           from,
           { text: '❌ Error en la API o no se encontraron resultados.' },
           { quoted: msg }
         )
+        return false
       }
 
       // Extraer los datos
@@ -65,11 +68,12 @@ export default {
       let resultados = response.data.resultados
 
       if (cantidad === 0 || resultados.length === 0) {
-        return sock.sendMessage(
+        await sock.sendMessage(
           from,
           { text: `ℹ️ No se encontró ninguna persona con los datos: ${soloPrimerNombre} ${apellidoPaterno} ${apellidoMaterno}` },
           { quoted: msg }
         )
+        return false
       }
 
       // Construir el mensaje de respuesta
@@ -97,6 +101,7 @@ export default {
         { text: `❌ *Error en la consulta:*\n${errorDeApi}\n\n💡 *Sugerencia:* Revisa que no haya símbolos extraños.` },
         { quoted: msg }
       )
+      return false
     }
   }
 }
