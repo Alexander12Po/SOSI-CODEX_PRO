@@ -68,55 +68,22 @@ export default {
 export async function handleGroupParticipantsUpdate(sock, update) {
   const { id, participants, action } = update
 
-  console.log('📥 Evento group-participants.update recibido:', JSON.stringify({ id, action, participants }))
-
-  if (action !== 'add') {
-    console.log('⏭️ Ignorado: action no es "add", es:', action)
-    return
-  }
+  if (action !== 'add') return
 
   // Verificar si la bienvenida está activada para este grupo
   const config = getConfigGrupos()
-  console.log('📄 Config actual de gruposBienvenida.json:', JSON.stringify(config))
-  console.log('🔑 ¿Coincide el id del grupo?', id, '->', config[id])
+  if (!config[id]) return // Si no está activada (true), no hace nada
 
-  if (!config[id]) {
-    console.log('⏭️ Ignorado: la bienvenida no está activada para este id de grupo.')
-    return // Si no está activada (true), no hace nada
-  }
-
-  for (const raw of participants) {
+  // Procesamos todos los que se unieron en paralelo (no uno por uno)
+  await Promise.all(participants.map(async (raw) => {
     try {
-      // A veces 'participants' no trae strings puros, sino objetos { id, phoneNumber, lid, ... }
-      // dependiendo de la versión de Baileys. El campo 'id' puede venir en formato @lid
-      // (identificador de privacidad), que NO sirve para onWhatsApp/profilePictureUrl.
-      // Priorizamos 'phoneNumber', que es el JID real utilizable.
       const participant = typeof raw === 'string'
         ? raw
         : (raw?.phoneNumber || raw?.id || raw?.jid || raw?.lid || null)
 
-      console.log('👤 Procesando participante ->', JSON.stringify(raw), '=> usando:', participant)
+      if (!participant || typeof participant !== 'string') return
 
-      if (!participant || typeof participant !== 'string') {
-        console.error('Error en bienvenida: participante con formato inesperado ->', JSON.stringify(raw))
-        continue
-      }
-
-      const userInfo = await sock.onWhatsApp(participant)
-      console.log('📇 Resultado de onWhatsApp para', participant, '->', JSON.stringify(userInfo))
-      if (!userInfo || userInfo.length === 0) {
-        console.log('⏭️ Ignorado: onWhatsApp no devolvió info para este participante.')
-        continue
-      }
-
-      let fotoPerfil
-      try {
-        fotoPerfil = await sock.profilePictureUrl(participant, 'image')
-      } catch (err) {
-        fotoPerfil = null
-      }
-
-      const nombreUsuario = userInfo[0].name || participant.split('@')[0]
+      const nombreUsuario = participant.split('@')[0]
       const ahora = new Date()
       const fecha = ahora.toLocaleDateString('es-PE')
       const hora = ahora.toLocaleTimeString('es-PE')
@@ -146,9 +113,11 @@ export async function handleGroupParticipantsUpdate(sock, update) {
 ━━━━━━━━━━━━━━━━━━━━
 🐾 *${botConfig.botName}* © ${new Date().getFullYear()}`
 
-      if (fotoPerfil) {
+      const imagenBienvenida = path.join(__dirname, '..', 'media', 'bienvenida.png')
+
+      if (fs.existsSync(imagenBienvenida)) {
         await sock.sendMessage(id, {
-          image: { url: fotoPerfil },
+          image: fs.readFileSync(imagenBienvenida),
           caption: mensajeBienvenida
         })
       } else {
@@ -158,5 +127,5 @@ export async function handleGroupParticipantsUpdate(sock, update) {
     } catch (err) {
       console.error('Error en bienvenida:', err.message)
     }
-  }
+  }))
 }
