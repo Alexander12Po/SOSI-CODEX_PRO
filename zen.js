@@ -80,7 +80,8 @@ async function startBot() {
     if (connection === 'close') {
       const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut
-      console.log('❌ Conexión cerrada.', shouldReconnect ? 'Reconectando...' : 'Sesión cerrada, borra la carpeta session y vuelve a vincular.')
+      console.log('❌ Conexión cerrada. Código:', statusCode, '| Motivo:', lastDisconnect?.error?.message || lastDisconnect?.error)
+      console.log(shouldReconnect ? 'Reconectando...' : 'Sesión cerrada, borra la carpeta session y vuelve a vincular.')
       if (shouldReconnect) startBot()
     } else if (connection === 'open') {
       console.log(`✅ ${botConfig.botName} conectado correctamente`)
