@@ -87,11 +87,15 @@ export async function handleGroupParticipantsUpdate(sock, update) {
 
   for (const raw of participants) {
     try {
-      // A veces 'participants' no trae strings puros, sino objetos { id, lid, ... }
-      // dependiendo de la versión de Baileys. Normalizamos siempre a string.
+      // A veces 'participants' no trae strings puros, sino objetos { id, phoneNumber, lid, ... }
+      // dependiendo de la versión de Baileys. El campo 'id' puede venir en formato @lid
+      // (identificador de privacidad), que NO sirve para onWhatsApp/profilePictureUrl.
+      // Priorizamos 'phoneNumber', que es el JID real utilizable.
       const participant = typeof raw === 'string'
         ? raw
-        : (raw?.id || raw?.jid || raw?.lid || null)
+        : (raw?.phoneNumber || raw?.id || raw?.jid || raw?.lid || null)
+
+      console.log('👤 Procesando participante ->', JSON.stringify(raw), '=> usando:', participant)
 
       if (!participant || typeof participant !== 'string') {
         console.error('Error en bienvenida: participante con formato inesperado ->', JSON.stringify(raw))
@@ -99,7 +103,11 @@ export async function handleGroupParticipantsUpdate(sock, update) {
       }
 
       const userInfo = await sock.onWhatsApp(participant)
-      if (!userInfo || userInfo.length === 0) continue
+      console.log('📇 Resultado de onWhatsApp para', participant, '->', JSON.stringify(userInfo))
+      if (!userInfo || userInfo.length === 0) {
+        console.log('⏭️ Ignorado: onWhatsApp no devolvió info para este participante.')
+        continue
+      }
 
       let fotoPerfil
       try {
@@ -151,4 +159,4 @@ export async function handleGroupParticipantsUpdate(sock, update) {
       console.error('Error en bienvenida:', err.message)
     }
   }
-     }
+}
