@@ -31,7 +31,7 @@ const categoriaPorComando = {
   help: 'GENERAL',
   info: 'GENERAL',
   ping: 'GENERAL',
-  cmds: 'GENERAL',
+  cmds: 'ACCESO_RAPIDO',
 
   // Los comandos de consultas ya no se listan uno por uno en el .menu:
   // ahora se agrupan y se ven todos juntos con el comando .cmds
@@ -55,9 +55,10 @@ const categoriaPorComando = {
 // 'CONSULTAS' ya no está en esta lista: por eso esa categoría no se
 // imprime en el .menu, aunque los comandos sigan clasificados arriba
 // (por si en el futuro se quiere usar esa clasificación en otro lado, como en .cmds).
-const ordenCategorias = ['ADMIN', 'USUARIO', 'GENERAL', 'OTROS']
+const ordenCategorias = ['ACCESO_RAPIDO', 'ADMIN', 'USUARIO', 'GENERAL', 'OTROS']
 
 const emojiCategoria = {
+  ACCESO_RAPIDO: '🔎',
   ADMIN: '👑',
   USUARIO: '👤',
   GENERAL: '🌐',
