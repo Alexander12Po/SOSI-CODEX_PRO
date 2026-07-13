@@ -49,11 +49,13 @@ export default {
       await sock.sendMessage(from, { text: '⏳ *Desbloqueando archivo...*' }, { quoted: msg });
       
       // Reconstruimos el mensaje para que Baileys sepa qué descargar
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
       const targetMessage = {
         message: viewOnceMsg,
         key: {
           remoteJid: from,
-          id: msg.message.extendedTextMessage.contextInfo.stanzaId
+          id: contextInfo?.stanzaId || msg.key.id,
+          participant: contextInfo?.participant
         }
       };
 
