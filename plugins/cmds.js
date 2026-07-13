@@ -2,7 +2,7 @@ import { botConfig } from '../config.js'
 
 export default {
   command: ['cmds', 'consultas'],
-  description: 'Muestra las consultas disponibles (DNI, SOAT, placa, árbol genealógico y más)',
+  description: 'Muestra las consultas disponibles (DNI, SOAT, placa, árbol genealógico, teléfonos y más)',
   exec: async ({ sock, from, msg }) => {
 
     const texto = `╔════════════════════╗
@@ -15,44 +15,46 @@ export default {
 │ ➜ Consulta el árbol genealógico y relaciones familiares por DNI
 │
 │ 🚨 ${botConfig.prefix}denuncias 💰20
-│ ➜ Consulta denuncias
+│ ➜ Consulta denuncias de personas
 │
 │ 🏠 ${botConfig.prefix}dir 💰6
-│ ➜ Consulta el historial de direcciones de una persona por su DNI
+│ ➜ Consulta el historial de direcciones por DNI
 │
 │ 🪪 ${botConfig.prefix}dni 💰1
 │ ➜ Consulta datos detallados de una persona por su DNI (Perú)
 │
-│ ✧ ${botConfig.prefix}dniamarillo 💰5
+│ 🟡 ${botConfig.prefix}dniamarillo 💰5
 │ ➜ Consulta DNI Amarillo
 │
-│ ✧ ${botConfig.prefix}dniazul 💰5
+│ 🔵 ${botConfig.prefix}dniazul 💰5
 │ ➜ Consulta DNI Azul
 │
 │ ⚖️ ${botConfig.prefix}fiscalia 💰15
-│ ➜ Consulta Fiscalía
+│ ➜ Consulta información registrada en Fiscalía
 │
 │ 👤 ${botConfig.prefix}nm 💰2
-│ ➜ Busca personas por Nombres y Apellidos
+│ ➜ Busca personas por nombres y apellidos
 │
 │ 🚗 ${botConfig.prefix}placa 💰5
-│ ➜ Consulta información de un vehículo por su número de placa
+│ ➜ Consulta información de un vehículo por su placa
 │
 │ 📂 ${botConfig.prefix}rfm 💰20
-│ ➜ Consulta RFM
+│ ➜ Consulta información RFM
 │
 │ 🛡️ ${botConfig.prefix}soat 💰10
-│ ➜ Consulta el estado y vigencia del SOAT de un vehículo por su placa
+│ ➜ Consulta el estado y vigencia del SOAT
 │
 │ 💼 ${botConfig.prefix}sueldo 💰10
-│ ➜ Consulta el historial de sueldos y empleos de una persona por su DNI
+│ ➜ Consulta historial de sueldos y empleos
 │
 │ 📱 ${botConfig.prefix}telp 💰5
-│ ➜ Consulta Teléfono
+│ ➜ Consulta información de un número telefónico
+│
+│ 📲 ${botConfig.prefix}telpx 💰10
+│ ➜ Consulta avanzada de un número telefónico
 │
 │ 👁️ ${botConfig.prefix}vv 🆓
 │ ➜ Descarga fotos y videos enviados para ver una sola vez
-│
 ╰──────────────────────╯
 
 ╭───────────────────╮
