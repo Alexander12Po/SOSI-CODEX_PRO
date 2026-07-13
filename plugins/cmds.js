@@ -2,7 +2,7 @@ import { botConfig } from '../config.js'
 
 export default {
   command: ['cmds', 'consultas'],
-  description: 'Muestra el listado completo de comandos de Consultas y sus precios',
+  description: 'Muestra las consultas disponibles (DNI, SOAT, placa, árbol genealógico y más)',
   exec: async ({ sock, from, msg }) => {
 
     const texto = `╔════════════════════╗
