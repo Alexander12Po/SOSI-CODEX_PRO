@@ -164,7 +164,7 @@ export async function manejarMensajeEliminado(sock, msg) {
     const esTextoPlano = original.tipo === 'texto'
     const tieneArchivo = original.mediaPath && fs.existsSync(original.mediaPath)
 
-    const textoAviso = `🗑️〔 *${botConfig.botName} - Anti-Delete* 〕🗑️
+    const textoAviso = `🗑️〔 *${botConfig.botName} - CODEX-VIP* 〕🗑️
 ━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ *Mensaje eliminado detectado*
