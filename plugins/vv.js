@@ -10,20 +10,21 @@ export default {
     if (!quoted) {
       return sock.sendMessage(
         from, 
-        { text: '❌ *Error:* Por favor, responde a una foto o video de "una sola vez" con el comando *.vv*' }, 
+        { text: '❌ *Error:* Por favor, responde a una foto, video o audio de "una sola vez" con el comando *.vv*' }, 
         { quoted: msg }
       );
     }
 
     // Los mensajes de "una sola vez" en WhatsApp pueden venir de 2 formas distintas:
     // 1) Envueltos: viewOnceMessage / viewOnceMessageV2 / viewOnceMessageV2Extension
-    // 2) Directos: una imageMessage/videoMessage normal con la bandera viewOnce: true
+    // 2) Directos: una imageMessage/videoMessage/audioMessage normal con la bandera viewOnce: true
     const viewOnceMsg =
       quoted.viewOnceMessage?.message ||
       quoted.viewOnceMessageV2?.message ||
       quoted.viewOnceMessageV2Extension?.message ||
       (quoted.imageMessage?.viewOnce ? { imageMessage: quoted.imageMessage } : null) ||
-      (quoted.videoMessage?.viewOnce ? { videoMessage: quoted.videoMessage } : null);
+      (quoted.videoMessage?.viewOnce ? { videoMessage: quoted.videoMessage } : null) ||
+      (quoted.audioMessage?.viewOnce ? { audioMessage: quoted.audioMessage } : null);
 
     if (!viewOnceMsg) {
       return sock.sendMessage(
@@ -33,14 +34,15 @@ export default {
       );
     }
 
-    // Identificar si lo que hay dentro es imagen o video
+    // Identificar si lo que hay dentro es imagen, video o audio
     const isImage = !!viewOnceMsg.imageMessage;
     const isVideo = !!viewOnceMsg.videoMessage;
+    const isAudio = !!viewOnceMsg.audioMessage;
 
-    if (!isImage && !isVideo) {
+    if (!isImage && !isVideo && !isAudio) {
       return sock.sendMessage(
         from, 
-        { text: '❌ *Error:* Solo puedo desbloquear fotos o videos.' }, 
+        { text: '❌ *Error:* Solo puedo desbloquear fotos, videos o audios.' }, 
         { quoted: msg }
       );
     }
@@ -74,6 +76,20 @@ export default {
           from, 
           { video: buffer, caption: '🔓 *Video desbloqueado con éxito*' }, 
           { quoted: msg }
+        );
+      } else if (isAudio) {
+        await sock.sendMessage(
+          from,
+          { text: '🔓 *Audio desbloqueado con éxito*' },
+          { quoted: msg }
+        );
+        return sock.sendMessage(
+          from,
+          {
+            audio: buffer,
+            mimetype: viewOnceMsg.audioMessage.mimetype || 'audio/ogg; codecs=opus',
+            ptt: viewOnceMsg.audioMessage.ptt || false
+          }
         );
       }
 
