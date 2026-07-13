@@ -8,13 +8,13 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // --- Cache en memoria de mensajes recientes ---
-// Clave: `${remoteJid}_${messageId}`  ->  { texto, tipo, senderId, senderName, chatId, timestamp, audioPath?, mimetype?, ptt? }
+// Clave: `${remoteJid}_${messageId}` -> { texto, tipo, senderId, senderName, chatId, timestamp, mediaPath?, mimetype?, ptt?, fileName? }
 const cache = new Map()
 
 const MAX_ENTRADAS = 1500                  // límite de mensajes guardados en memoria
 const TIEMPO_VIDA_MS = 24 * 60 * 60 * 1000 // 24 horas
 
-// Carpeta temporal donde se guardan los audios descargados
+// Carpeta temporal donde se guardan los archivos descargados
 const TMP_DIR = path.join(__dirname, '..', 'tmp_antidelete')
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true })
 
@@ -28,41 +28,62 @@ setInterval(() => {
   const ahora = Date.now()
   for (const [key, val] of cache.entries()) {
     if (ahora - val.timestamp > TIEMPO_VIDA_MS) {
-      borrarArchivoSiExiste(val.audioPath)
+      borrarArchivoSiExiste(val.mediaPath)
       cache.delete(key)
     }
   }
 }, 10 * 60 * 1000) // cada 10 minutos
 
-function extraerTexto(message) {
+// Mapeo de tipo de mensaje -> { tipoDescarga (para downloadContentFromMessage), extensionPorDefecto }
+const TIPOS_MEDIA = {
+  audio: { tipoDescarga: 'audio', extension: 'ogg' },
+  imagen: { tipoDescarga: 'image', extension: 'jpg' },
+  video: { tipoDescarga: 'video', extension: 'mp4' },
+  documento: { tipoDescarga: 'document', extension: 'bin' },
+  sticker: { tipoDescarga: 'sticker', extension: 'webp' }
+}
+
+function extraerInfo(message) {
   if (!message) return null
 
   if (message.conversation) return { texto: message.conversation, tipo: 'texto' }
   if (message.extendedTextMessage?.text) return { texto: message.extendedTextMessage.text, tipo: 'texto' }
-  if (message.imageMessage) return { texto: message.imageMessage.caption || '(imagen sin texto)', tipo: 'imagen' }
-  if (message.videoMessage) return { texto: message.videoMessage.caption || '(video sin texto)', tipo: 'video' }
-  if (message.documentMessage) return { texto: message.documentMessage.fileName || '(documento)', tipo: 'documento' }
-  if (message.audioMessage) return { texto: message.audioMessage.ptt ? '(nota de voz)' : '(audio)', tipo: 'audio' }
-  if (message.stickerMessage) return { texto: '(sticker)', tipo: 'sticker' }
+
+  if (message.imageMessage) return { texto: message.imageMessage.caption || '', tipo: 'imagen', mediaMessage: message.imageMessage }
+  if (message.videoMessage) return { texto: message.videoMessage.caption || '', tipo: 'video', mediaMessage: message.videoMessage }
+  if (message.documentMessage) return { texto: message.documentMessage.fileName || '(documento)', tipo: 'documento', mediaMessage: message.documentMessage, fileName: message.documentMessage.fileName }
+  if (message.audioMessage) return { texto: message.audioMessage.ptt ? '(nota de voz)' : '(audio)', tipo: 'audio', mediaMessage: message.audioMessage }
+  if (message.stickerMessage) return { texto: '(sticker)', tipo: 'sticker', mediaMessage: message.stickerMessage }
 
   return null
 }
 
-async function descargarAudio(audioMessage, messageId) {
+async function descargarMedia(mediaMessage, tipo, messageId) {
   try {
-    const stream = await downloadContentFromMessage(audioMessage, 'audio')
+    const config = TIPOS_MEDIA[tipo]
+    if (!config) return null
+
+    const stream = await downloadContentFromMessage(mediaMessage, config.tipoDescarga)
     let buffer = Buffer.from([])
     for await (const chunk of stream) {
       buffer = Buffer.concat([buffer, chunk])
     }
 
-    const extension = audioMessage.mimetype?.includes('ogg') ? 'ogg' : 'mp3'
+    let extension = config.extension
+    if (mediaMessage.mimetype) {
+      if (mediaMessage.mimetype.includes('ogg')) extension = 'ogg'
+      else if (mediaMessage.mimetype.includes('mp4')) extension = 'mp4'
+      else if (mediaMessage.mimetype.includes('jpeg') || mediaMessage.mimetype.includes('jpg')) extension = 'jpg'
+      else if (mediaMessage.mimetype.includes('png')) extension = 'png'
+      else if (mediaMessage.mimetype.includes('webp')) extension = 'webp'
+    }
+
     const filePath = path.join(TMP_DIR, `${messageId}.${extension}`)
     fs.writeFileSync(filePath, buffer)
 
     return filePath
   } catch (err) {
-    console.error('Error descargando audio (antidelete):', err.message)
+    console.error(`Error descargando ${tipo} (antidelete):`, err.message)
     return null
   }
 }
@@ -76,8 +97,8 @@ export async function cachearMensaje(msg) {
     if (!msg?.message || !msg.key?.id) return
     if (msg.message.protocolMessage) return // no cachear los propios mensajes de "eliminar"
 
-    const extraido = extraerTexto(msg.message)
-    if (!extraido) return // tipo de mensaje no soportado (ubicación, contacto, etc.)
+    const info = extraerInfo(msg.message)
+    if (!info) return // tipo de mensaje no soportado (ubicación, contacto, etc.)
 
     const chatId = msg.key.remoteJid
     const senderId = msg.key.participantAlt || msg.key.participant || msg.key.remoteJid
@@ -86,22 +107,22 @@ export async function cachearMensaje(msg) {
     const key = `${chatId}_${msg.key.id}`
 
     const entrada = {
-      texto: extraido.texto,
-      tipo: extraido.tipo,
+      texto: info.texto,
+      tipo: info.tipo,
       senderId,
       senderName,
       chatId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      fileName: info.fileName
     }
 
-    // Si es audio/nota de voz, descargamos el archivo real para poder reenviarlo
-    if (extraido.tipo === 'audio') {
-      const audioMessage = msg.message.audioMessage
-      const filePath = await descargarAudio(audioMessage, msg.key.id)
+    // Si es un tipo con archivo (audio, imagen, video, documento, sticker), lo descargamos
+    if (info.mediaMessage) {
+      const filePath = await descargarMedia(info.mediaMessage, info.tipo, msg.key.id)
       if (filePath) {
-        entrada.audioPath = filePath
-        entrada.mimetype = audioMessage.mimetype
-        entrada.ptt = audioMessage.ptt || false
+        entrada.mediaPath = filePath
+        entrada.mimetype = info.mediaMessage.mimetype
+        entrada.ptt = info.mediaMessage.ptt || false
       }
     }
 
@@ -111,7 +132,7 @@ export async function cachearMensaje(msg) {
     if (cache.size > MAX_ENTRADAS) {
       const primeraClave = cache.keys().next().value
       const primeraEntrada = cache.get(primeraClave)
-      borrarArchivoSiExiste(primeraEntrada?.audioPath)
+      borrarArchivoSiExiste(primeraEntrada?.mediaPath)
       cache.delete(primeraClave)
     }
   } catch (err) {
@@ -140,14 +161,17 @@ export async function manejarMensajeEliminado(sock, msg) {
     const eliminadoPorId = msg.key.participantAlt || msg.key.participant || msg.key.remoteJid
     const esMismaPersona = eliminadoPorId?.split('@')[0].split(':')[0] === original.senderId?.split('@')[0].split(':')[0]
 
-    const textoAviso = `🗑️〔 *${botConfig.botName} - CODEX-VIP* 〕🗑️
+    const esTextoPlano = original.tipo === 'texto'
+    const tieneArchivo = original.mediaPath && fs.existsSync(original.mediaPath)
+
+    const textoAviso = `🗑️〔 *${botConfig.botName} - Anti-Delete* 〕🗑️
 ━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ *Mensaje eliminado detectado*
 
 👤 *Enviado por:* @${original.senderId.split('@')[0]}
 🧹 *Eliminado por:* ${esMismaPersona ? 'el mismo remitente' : '@' + eliminadoPorId.split('@')[0]}
-📦 *Tipo:* ${original.tipo}${original.tipo !== 'audio' ? `\n\n💬 *Contenido:*\n${original.texto}` : ''}
+📦 *Tipo:* ${original.tipo}${esTextoPlano ? `\n\n💬 *Contenido:*\n${original.texto}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━`
 
@@ -156,20 +180,43 @@ export async function manejarMensajeEliminado(sock, msg) {
 
     await sock.sendMessage(chatId, { text: textoAviso, mentions })
 
-    // Si era audio y lo tenemos descargado, lo reenviamos también
-    if (original.tipo === 'audio' && original.audioPath && fs.existsSync(original.audioPath)) {
-      const buffer = fs.readFileSync(original.audioPath)
-      await sock.sendMessage(chatId, {
-        audio: buffer,
-        mimetype: original.mimetype || 'audio/ogg; codecs=opus',
-        ptt: original.ptt
-      })
+    // Si había un archivo (audio, imagen, video, documento, sticker), lo reenviamos también
+    if (tieneArchivo) {
+      const buffer = fs.readFileSync(original.mediaPath)
+
+      if (original.tipo === 'audio') {
+        await sock.sendMessage(chatId, {
+          audio: buffer,
+          mimetype: original.mimetype || 'audio/ogg; codecs=opus',
+          ptt: original.ptt
+        })
+      } else if (original.tipo === 'imagen') {
+        await sock.sendMessage(chatId, {
+          image: buffer,
+          caption: original.texto || undefined,
+          mimetype: original.mimetype
+        })
+      } else if (original.tipo === 'video') {
+        await sock.sendMessage(chatId, {
+          video: buffer,
+          caption: original.texto || undefined,
+          mimetype: original.mimetype
+        })
+      } else if (original.tipo === 'documento') {
+        await sock.sendMessage(chatId, {
+          document: buffer,
+          fileName: original.fileName || 'archivo',
+          mimetype: original.mimetype
+        })
+      } else if (original.tipo === 'sticker') {
+        await sock.sendMessage(chatId, { sticker: buffer })
+      }
     }
 
     // Ya se usó: limpiamos cache y archivo temporal
-    borrarArchivoSiExiste(original.audioPath)
+    borrarArchivoSiExiste(original.mediaPath)
     cache.delete(key)
   } catch (err) {
     console.error('Error en manejarMensajeEliminado (antidelete):', err.message)
   }
-      }
+    }
