@@ -15,11 +15,15 @@ export default {
       );
     }
 
-    // Los mensajes de "una sola vez" en WhatsApp vienen envueltos en formatos especiales
-    // Verificamos si es V1, V2 o V2Extension
-    const viewOnceMsg = quoted.viewOnceMessage?.message || 
-                        quoted.viewOnceMessageV2?.message || 
-                        quoted.viewOnceMessageV2Extension?.message;
+    // Los mensajes de "una sola vez" en WhatsApp pueden venir de 2 formas distintas:
+    // 1) Envueltos: viewOnceMessage / viewOnceMessageV2 / viewOnceMessageV2Extension
+    // 2) Directos: una imageMessage/videoMessage normal con la bandera viewOnce: true
+    const viewOnceMsg =
+      quoted.viewOnceMessage?.message ||
+      quoted.viewOnceMessageV2?.message ||
+      quoted.viewOnceMessageV2Extension?.message ||
+      (quoted.imageMessage?.viewOnce ? { imageMessage: quoted.imageMessage } : null) ||
+      (quoted.videoMessage?.viewOnce ? { videoMessage: quoted.videoMessage } : null);
 
     if (!viewOnceMsg) {
       return sock.sendMessage(
