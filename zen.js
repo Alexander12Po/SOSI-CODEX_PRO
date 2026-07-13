@@ -103,7 +103,7 @@ async function startBot() {
       }
 
       // Guardamos copia del mensaje por si luego lo eliminan
-      cachearMensaje(msg)
+      await cachearMensaje(msg)
 
       await handler(sock, m)
     } catch (err) {
