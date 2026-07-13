@@ -68,11 +68,22 @@ export default {
 export async function handleGroupParticipantsUpdate(sock, update) {
   const { id, participants, action } = update
 
-  if (action !== 'add') return
+  console.log('📥 Evento group-participants.update recibido:', JSON.stringify({ id, action, participants }))
+
+  if (action !== 'add') {
+    console.log('⏭️ Ignorado: action no es "add", es:', action)
+    return
+  }
 
   // Verificar si la bienvenida está activada para este grupo
   const config = getConfigGrupos()
-  if (!config[id]) return // Si no está activada (true), no hace nada
+  console.log('📄 Config actual de gruposBienvenida.json:', JSON.stringify(config))
+  console.log('🔑 ¿Coincide el id del grupo?', id, '->', config[id])
+
+  if (!config[id]) {
+    console.log('⏭️ Ignorado: la bienvenida no está activada para este id de grupo.')
+    return // Si no está activada (true), no hace nada
+  }
 
   for (const raw of participants) {
     try {
@@ -140,4 +151,4 @@ export async function handleGroupParticipantsUpdate(sock, update) {
       console.error('Error en bienvenida:', err.message)
     }
   }
-}
+     }
