@@ -2,7 +2,7 @@ import { botConfig } from '../config.js'
 
 export default {
   command: ['cmds', 'consultas'],
-  description: 'Muestra solo el listado de comandos de Consultas',
+  description: 'Muestra el listado completo de comandos de Consultas y sus precios',
   exec: async ({ sock, from, msg }) => {
 
     const texto = `╔════════════════════╗
