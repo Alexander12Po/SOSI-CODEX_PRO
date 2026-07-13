@@ -13,6 +13,7 @@ import NodeCache from 'node-cache'
 import { handler } from './handler.js'
 import { botConfig } from './config.js'
 import { handleGroupParticipantsUpdate } from './plugins/bienvenida.js'
+import { cachearMensaje, manejarMensajeEliminado } from './plugins/antidelete.js'
 
 const question = (text) => new Promise((resolve) => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
@@ -88,7 +89,21 @@ async function startBot() {
 
   sock.ev.on('messages.upsert', async (m) => {
     if (m.type !== 'notify') return
+
+    const msg = m.messages[0]
+    if (!msg?.message) return
+
     try {
+      // Si es un mensaje de "eliminar" (Eliminar para todos), intentamos
+      // recuperar la copia guardada en cache y reenviarla.
+      if (msg.message.protocolMessage?.type === 0 /* REVOKE */) {
+        await manejarMensajeEliminado(sock, msg)
+        return
+      }
+
+      // Guardamos copia del mensaje por si luego lo eliminan
+      cachearMensaje(msg)
+
       await handler(sock, m)
     } catch (err) {
       console.error('Error en handler:', err)
