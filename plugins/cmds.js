@@ -56,6 +56,9 @@ export default {
 │ 📱 ${botConfig.prefix}telp 💰5
 │ ➜ Consulta Teléfono
 │
+│ 📲 ${botConfig.prefix}telpx 💰5
+│ ➜ Consulta Teléfono (variante extendida)
+│
 │ 🚨 ${botConfig.prefix}den 💰15
 │ ➜ Resumen de denuncias (condición e intervención) por DNI
 │
