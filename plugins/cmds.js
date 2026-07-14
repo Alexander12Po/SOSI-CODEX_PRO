@@ -59,6 +59,8 @@ export default {
 │ 👁️ ${botConfig.prefix}vv 🆓
 │ ➜ Descarga fotos y videos enviados para ver una sola vez
 │
+| 📝${botConfig.prefix}denpla 💰20
+|
 ╰──────────────────────╯
 
 ╭───────────────────╮
