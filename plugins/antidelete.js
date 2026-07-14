@@ -63,6 +63,11 @@ async function descargarMedia(mediaMessage, tipo, messageId) {
     const config = TIPOS_MEDIA[tipo]
     if (!config) return null
 
+    // Si no hay mediaKey, no podemos descifrar el archivo — evitamos el intento fallido
+    if (!mediaMessage.mediaKey || mediaMessage.mediaKey.length === 0) {
+      return null
+    }
+
     const stream = await downloadContentFromMessage(mediaMessage, config.tipoDescarga)
     let buffer = Buffer.from([])
     for await (const chunk of stream) {
@@ -83,7 +88,10 @@ async function descargarMedia(mediaMessage, tipo, messageId) {
 
     return filePath
   } catch (err) {
-    console.error(`Error descargando ${tipo} (antidelete):`, err.message)
+    // Solo mostramos en consola errores que no sean el conocido "media key vacía"
+    if (!err.message?.includes('Cannot derive from empty media key')) {
+      console.error(`Error descargando ${tipo} (antidelete):`, err.message)
+    }
     return null
   }
 }
@@ -219,4 +227,4 @@ export async function manejarMensajeEliminado(sock, msg) {
   } catch (err) {
     console.error('Error en manejarMensajeEliminado (antidelete):', err.message)
   }
-    }
+}
