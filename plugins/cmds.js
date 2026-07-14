@@ -44,7 +44,7 @@ export default {
 │ 🚗 ${botConfig.prefix}placa 💰5
 │ ➜ Consulta información de un vehículo por su número de placa
 │
-│ 📂 ${botConfig.prefix}rfm 💰20
+│ 📂 ${botConfig.prefix}facial 💰20
 │ ➜ Consulta RFM
 │
 │ 🛡️ ${botConfig.prefix}soat 💰10
