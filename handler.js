@@ -83,6 +83,9 @@ export async function handler(sock, m) {
   // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
 
+  // Lanzamos la reacción sin esperarla (no bloquea el flujo)
+  sock.sendMessage(from, { react: { text: '📩', key: msg.key } }).catch(() => {});
+
   // --- VERIFICAR REGISTRO Y CRÉDITOS (sin cobrar todavía) ---
   const usuarioActual = await User.findOne({ numero: sender });
 
@@ -127,7 +130,6 @@ y precios utiliza:
   // -------------------------------------
 
   try {
-    await sock.sendMessage(from, { react: { text: '📩', key: msg.key } });
     const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
 
     // Solo cobrar si el plugin no devolvió explícitamente "false" (consulta fallida)
@@ -137,7 +139,7 @@ y precios utiliza:
       const usuarioActualizado = await User.findOneAndUpdate(
         { numero: sender },
         { $inc: { creditos: -costo } },
-        { new: true }
+        { returnDocument: 'after' }
       );
       await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usuarioActualizado.creditos}*` });
     }
