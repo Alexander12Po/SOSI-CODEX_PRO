@@ -20,23 +20,20 @@ export default {
 │ 🌳 ${botConfig.prefix}ag 💰10
 │ ➜ Consulta el árbol genealógico y relaciones familiares por DNI
 │
-│ 🚨 ${botConfig.prefix}denuncias 💰20
-│ ➜ Consulta denuncias
-│
 │ 🏠 ${botConfig.prefix}dir 💰6
 │ ➜ Consulta el historial de direcciones de una persona por su DNI
 │
 │ 🪪 ${botConfig.prefix}dni 💰1
 │ ➜ Consulta datos detallados de una persona por su DNI (Perú)
 │
-│ ✧ ${botConfig.prefix}dniamarillo 💰5
-│ ➜ Consulta DNI Amarillo
+│ 🖼️ ${botConfig.prefix}dnit 💰8
+│ ➜ Ficha completa de DNI con fotos, domicilio y ubigeos
 │
-│ ✧ ${botConfig.prefix}dniazul 💰5
-│ ➜ Consulta DNI Azul
+│ 📸 ${botConfig.prefix}dnivel 💰5
+│ ➜ Consulta DNI con imágenes (formato rápido)
 │
-│ ⚖️ ${botConfig.prefix}fiscalia 💰15
-│ ➜ Consulta Fiscalía
+│ 📷 ${botConfig.prefix}dniv 💰5
+│ ➜ Consulta DNI con imágenes (formato PNG)
 │
 │ 👤 ${botConfig.prefix}nm 💰2
 │ ➜ Busca personas por Nombres y Apellidos
@@ -44,7 +41,10 @@ export default {
 │ 🚗 ${botConfig.prefix}placa 💰5
 │ ➜ Consulta información de un vehículo por su número de placa
 │
-│ 📂 ${botConfig.prefix}facial 💰20
+│ 📋 ${botConfig.prefix}plat 💰8
+│ ➜ Ficha técnica completa del vehículo (series, propietarios)
+│
+│ 📂 ${botConfig.prefix}rfm 💰20
 │ ➜ Consulta RFM
 │
 │ 🛡️ ${botConfig.prefix}soat 💰10
@@ -56,11 +56,21 @@ export default {
 │ 📱 ${botConfig.prefix}telp 💰5
 │ ➜ Consulta Teléfono
 │
+│ 🚨 ${botConfig.prefix}den 💰15
+│ ➜ Resumen de denuncias (condición e intervención) por DNI
+│
+│ 📄 ${botConfig.prefix}denuncias 💰20
+│ ➜ Consulta denuncias policiales con documentos por DNI
+│
+│ 🚔 ${botConfig.prefix}denpla 💰20
+│ ➜ Consulta denuncias policiales por placa
+│
+│ ⚖️ ${botConfig.prefix}rqh 💰15
+│ ➜ Consulta requisitorias y procesos judiciales por DNI
+│
 │ 👁️ ${botConfig.prefix}vv 🆓
 │ ➜ Descarga fotos y videos enviados para ver una sola vez
 │
-| 📝${botConfig.prefix}denpla 💰20
-|
 ╰──────────────────────╯
 
 ╭───────────────────╮
