@@ -1,5 +1,6 @@
 import axios from 'axios'
 import FormData from 'form-data'
+import { downloadMediaMessage } from '@whiskeysockets/baileys'
 
 export default {
   command: ['facial'],
@@ -25,11 +26,15 @@ export default {
     try {
       await sock.sendMessage(from, { text: '🔍 Analizando rostro en la imagen...' }, { quoted: msg })
 
-      // Descargar la imagen
-      const imageBuffer = await sock.downloadMediaMessage(
-        imageMessage,
+      // Descargar la imagen usando la función correcta de Baileys
+      const imageBuffer = await downloadMediaMessage(
+        { key: msg.key, message: imageMessage },
         'buffer',
-        { reuploadRequest: sock.updateProfilePicture }
+        {},
+        { 
+          logger: console,
+          reuploadRequest: sock.updateMediaMessage
+        }
       )
 
       // Crear FormData para enviar la imagen
@@ -63,10 +68,10 @@ export default {
       }
 
       // Construcción del mensaje con TODOS los datos
-      let resultado = `┌─❐ *RECONOCIMIENTO FACIAL* ❐\n`
+      let resultado = `─❐ *RECONOCIMIENTO FACIAL* ❐\n`
       resultado += `│\n`
       resultado += `🎯 *Tipo:* ${response.data.tipo_resultado || 'Rostro'}\n`
-      resultado += `📊 *Coincidencias:* ${response.data.coincidencias_mostradas}\n`
+      resultado += ` *Coincidencias:* ${response.data.coincidencias_mostradas}\n`
       resultado += `│\n`
       
       response.data.coincidencias.forEach((item, index) => {
