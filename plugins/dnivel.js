@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 export default {
-  command: ['dnivel', 'dniv'],
+  command: ['dnivel'],
   description: 'Consulta datos básicos de DNI con imágenes (nombres, edad, género y fotos)',
   exec: async ({ sock, from, msg, args }) => {
     const s_dni = args[0]
