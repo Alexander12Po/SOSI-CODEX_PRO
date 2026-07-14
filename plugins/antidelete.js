@@ -63,10 +63,19 @@ async function descargarMedia(mediaMessage, tipo, messageId) {
     const config = TIPOS_MEDIA[tipo]
     if (!config) return null
 
+    if (!mediaMessage.mediaKey || mediaMessage.mediaKey.length === 0) {
+      if (tipo === 'video') console.log('⚠️ Video sin mediaKey, no se puede cachear:', messageId)
+      return null
+    }
+
     const stream = await downloadContentFromMessage(mediaMessage, config.tipoDescarga)
     let buffer = Buffer.from([])
     for await (const chunk of stream) {
       buffer = Buffer.concat([buffer, chunk])
+    }
+
+    if (tipo === 'video') {
+      console.log(`📹 Video descargado: ${messageId}, tamaño: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`)
     }
 
     let extension = config.extension
@@ -83,7 +92,9 @@ async function descargarMedia(mediaMessage, tipo, messageId) {
 
     return filePath
   } catch (err) {
-    console.error(`Error descargando ${tipo} (antidelete):`, err.message)
+    if (!err.message?.includes('Cannot derive from empty media key')) {
+      console.error(`Error descargando ${tipo} (antidelete):`, err.message)
+    }
     return null
   }
 }
@@ -219,4 +230,4 @@ export async function manejarMensajeEliminado(sock, msg) {
   } catch (err) {
     console.error('Error en manejarMensajeEliminado (antidelete):', err.message)
   }
-          }
+}
