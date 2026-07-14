@@ -7,9 +7,10 @@ export default {
   description: 'Reconocimiento facial - Busca coincidencias por foto',
   exec: async ({ sock, from, msg, args }) => {
     // Verificar si hay imagen en el mensaje citado o directo
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+    const quoted = contextInfo?.quotedMessage
     const imageMessage = quoted?.imageMessage || msg.message?.imageMessage
-    
+
     if (!imageMessage) {
       await sock.sendMessage(
         from,
@@ -26,9 +27,21 @@ export default {
     try {
       await sock.sendMessage(from, { text: '🔍 Analizando rostro en la imagen...' }, { quoted: msg })
 
+      // Reconstruimos la key correcta según si la imagen viene citada o directa
+      const targetMessage = quoted
+        ? {
+            key: {
+              remoteJid: from,
+              id: contextInfo?.stanzaId || msg.key.id,
+              participant: contextInfo?.participant
+            },
+            message: quoted
+          }
+        : { key: msg.key, message: msg.message }
+
       // Descargar la imagen usando la función correcta de Baileys
       const imageBuffer = await downloadMediaMessage(
-        { key: msg.key, message: imageMessage },
+        targetMessage,
         'buffer',
         {},
         { 
@@ -75,7 +88,6 @@ export default {
       resultado += `│\n`
       
       response.data.coincidencias.forEach((item, index) => {
-        // Determinar color/emoji según el porcentaje
         let emoji = '🔴'
         if (item.porcentaje >= 90) emoji = '🟢'
         else if (item.porcentaje >= 75) emoji = '🟡'
