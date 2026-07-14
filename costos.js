@@ -5,19 +5,23 @@
 
 export const costoPorComando = {
   ag: 10,
+  den: 15,
+  denpla: 20,
   denuncias: 20,
   dir: 6,
   dni: 1,
-  dniamarillo: 5,
-  dniazul: 5,
-  dnielectronico: 5,
-  fiscalia: 15,
+  dnit: 8,
+  dnivel: 5,
+  dniv: 5,
   nm: 2,
   placa: 5,
+  plat: 8,
   rfm: 20,
+  rqh: 15,
   soat: 10,
   sueldo: 10,
   telp: 5,
+  telpx: 5,
   vv: 0 // gratis
 }
 
