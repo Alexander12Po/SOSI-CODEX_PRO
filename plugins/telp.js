@@ -25,6 +25,7 @@ export default {
       const { data: response } = await axios.get(
         `https://api-codart.cgrt.org/api/v1/consultas/fd/telp/${dni}`,
         {
+          timeout: 15000,
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -63,9 +64,12 @@ export default {
 
     } catch (err) {
       console.error('Error consultando teléfono:', err?.response?.data || err.message)
+      const mensaje = err.code === 'ECONNABORTED'
+        ? '⏱️ La consulta tardó demasiado y se canceló. Intenta de nuevo en unos segundos.'
+        : '❌ Ocurrió un error al consultar. Verifica el DNI o si el servicio está disponible.'
       await sock.sendMessage(
         from,
-        { text: '❌ Ocurrió un error al consultar. Verifica el DNI o si el servicio está disponible.' },
+        { text: mensaje },
         { quoted: msg }
       )
       return false // Evita cobros si la API falla
