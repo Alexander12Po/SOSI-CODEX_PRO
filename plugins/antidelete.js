@@ -8,22 +8,19 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // --- Cache en memoria de mensajes recientes ---
-// Clave: `${remoteJid}_${messageId}` -> { texto, tipo, senderId, senderName, chatId, timestamp, mediaPath?, mimetype?, ptt?, fileName? }
 const cache = new Map()
 
 const MAX_ENTRADAS = 1500                  // límite de mensajes guardados en memoria
 const TIEMPO_VIDA_MS = 24 * 60 * 60 * 1000 // 24 horas
 
-// Carpeta temporal donde se guardan los archivos descargados
 const TMP_DIR = path.join(__dirname, '..', 'tmp_antidelete')
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true })
 
 function borrarArchivoSiExiste(filePath) {
   if (!filePath) return
-  fs.unlink(filePath, () => {}) // silencioso, si no existe no importa
+  fs.unlink(filePath, () => {})
 }
 
-// Limpieza periódica para no acumular memoria/disco indefinidamente
 setInterval(() => {
   const ahora = Date.now()
   for (const [key, val] of cache.entries()) {
@@ -32,9 +29,8 @@ setInterval(() => {
       cache.delete(key)
     }
   }
-}, 10 * 60 * 1000) // cada 10 minutos
+}, 10 * 60 * 1000)
 
-// Mapeo de tipo de mensaje -> { tipoDescarga (para downloadContentFromMessage), extensionPorDefecto }
 const TIPOS_MEDIA = {
   audio: { tipoDescarga: 'audio', extension: 'ogg' },
   imagen: { tipoDescarga: 'image', extension: 'jpg' },
@@ -68,11 +64,23 @@ async function descargarMedia(mediaMessage, tipo, messageId) {
       return null
     }
 
-    const stream = await downloadContentFromMessage(mediaMessage, config.tipoDescarga)
-    let buffer = Buffer.from([])
-    for await (const chunk of stream) {
-      buffer = Buffer.concat([buffer, chunk])
-    }
+    // Timeout de seguridad: si la red está mala y la descarga se cuelga,
+    // abortamos en vez de dejar el proceso colgado indefinidamente.
+    const TIMEOUT_MS = 30000
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout descargando media (antidelete)')), TIMEOUT_MS)
+    )
+
+    const descargaPromise = (async () => {
+      const stream = await downloadContentFromMessage(mediaMessage, config.tipoDescarga)
+      let buffer = Buffer.from([])
+      for await (const chunk of stream) {
+        buffer = Buffer.concat([buffer, chunk])
+      }
+      return buffer
+    })()
+
+    const buffer = await Promise.race([descargaPromise, timeoutPromise])
 
     if (tipo === 'video') {
       console.log(`📹 Video descargado: ${messageId}, tamaño: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`)
@@ -99,17 +107,13 @@ async function descargarMedia(mediaMessage, tipo, messageId) {
   }
 }
 
-/**
- * Guarda una copia del mensaje en cache, para poder recuperarlo si luego se elimina.
- * Debe llamarse con TODOS los mensajes entrantes (antes de filtrar por prefijo de comando).
- */
 export async function cachearMensaje(msg) {
   try {
     if (!msg?.message || !msg.key?.id) return
-    if (msg.message.protocolMessage) return // no cachear los propios mensajes de "eliminar"
+    if (msg.message.protocolMessage) return
 
     const info = extraerInfo(msg.message)
-    if (!info) return // tipo de mensaje no soportado (ubicación, contacto, etc.)
+    if (!info) return
 
     const chatId = msg.key.remoteJid
     const senderId = msg.key.participantAlt || msg.key.participant || msg.key.remoteJid
@@ -127,7 +131,6 @@ export async function cachearMensaje(msg) {
       fileName: info.fileName
     }
 
-    // Si es un tipo con archivo (audio, imagen, video, documento, sticker), lo descargamos
     if (info.mediaMessage) {
       const filePath = await descargarMedia(info.mediaMessage, info.tipo, msg.key.id)
       if (filePath) {
@@ -139,7 +142,6 @@ export async function cachearMensaje(msg) {
 
     cache.set(key, entrada)
 
-    // Evitar crecimiento infinito: si se pasa del límite, borra el más antiguo
     if (cache.size > MAX_ENTRADAS) {
       const primeraClave = cache.keys().next().value
       const primeraEntrada = cache.get(primeraClave)
@@ -151,10 +153,6 @@ export async function cachearMensaje(msg) {
   }
 }
 
-/**
- * Debe llamarse cuando se detecta un mensaje de tipo protocolMessage con type REVOKE.
- * Busca el mensaje original en cache y lo reenvía al chat.
- */
 export async function manejarMensajeEliminado(sock, msg) {
   try {
     const protocolMsg = msg.message?.protocolMessage
@@ -164,10 +162,7 @@ export async function manejarMensajeEliminado(sock, msg) {
     const key = `${chatId}_${protocolMsg.key.id}`
     const original = cache.get(key)
 
-    if (!original) {
-      // No teníamos copia guardada (mensaje muy viejo, o del propio bot), no hacemos nada
-      return
-    }
+    if (!original) return
 
     const eliminadoPorId = msg.key.participantAlt || msg.key.participant || msg.key.remoteJid
     const esMismaPersona = eliminadoPorId?.split('@')[0].split(':')[0] === original.senderId?.split('@')[0].split(':')[0]
@@ -191,7 +186,6 @@ export async function manejarMensajeEliminado(sock, msg) {
 
     await sock.sendMessage(chatId, { text: textoAviso, mentions })
 
-    // Si había un archivo (audio, imagen, video, documento, sticker), lo reenviamos también
     if (tieneArchivo) {
       const buffer = fs.readFileSync(original.mediaPath)
 
@@ -224,7 +218,6 @@ export async function manejarMensajeEliminado(sock, msg) {
       }
     }
 
-    // Ya se usó: limpiamos cache y archivo temporal
     borrarArchivoSiExiste(original.mediaPath)
     cache.delete(key)
   } catch (err) {
