@@ -24,6 +24,7 @@ export default {
 
       // Petición a la nueva API de Árbol Genealógico
       const { data: response } = await axios.get(`https://api-codart.cgrt.org/api/v1/consultas/fd/ag/${s_dni}`, {
+        timeout: 15000,
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -76,9 +77,11 @@ export default {
 
     } catch (err) {
       console.error('Error consultando Árbol Genealógico:', err?.response?.data || err.message)
-      
-      const errorDeApi = err?.response?.data?.message || 'Ocurrió un error al consultar el árbol genealógico.'
-      
+
+      const errorDeApi = err.code === 'ECONNABORTED'
+        ? '⏱️ La consulta tardó demasiado y se canceló. Intenta de nuevo en unos segundos.'
+        : (err?.response?.data?.message || 'Ocurrió un error al consultar el árbol genealógico.')
+
       await sock.sendMessage(
         from,
         { text: `❌ ${errorDeApi}` },
