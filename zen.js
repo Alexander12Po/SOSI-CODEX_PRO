@@ -15,6 +15,18 @@ import { botConfig } from './config.js'
 import { handleGroupParticipantsUpdate } from './plugins/bienvenida.js'
 import { cachearMensaje, manejarMensajeEliminado } from './plugins/antidelete.js'
 
+// --- BLINDAJE GLOBAL: evita que errores no capturados tumben el bot ---
+// Sin esto, un solo error (ej: una descarga de imagen que falla a medias)
+// puede matar TODO el proceso de Node y forzar un reinicio completo del bot.
+process.on('uncaughtException', (err) => {
+  console.error('⚠️ Error no capturado (uncaughtException):', err)
+})
+
+process.on('unhandledRejection', (reason) => {
+  console.error('⚠️ Promesa rechazada no manejada (unhandledRejection):', reason)
+})
+// -----------------------------------------------------------------------
+
 const question = (text) => new Promise((resolve) => {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   rl.question(text, (answer) => {
