@@ -87,7 +87,8 @@ export async function handler(sock, m) {
   sock.sendMessage(from, { react: { text: '📩', key: msg.key } }).catch(() => {});
 
   // --- VERIFICAR REGISTRO Y CRÉDITOS (sin cobrar todavía) ---
-  const usuarioActual = await User.findOne({ numero: sender });
+  // .lean() evita que Mongoose hidrate un documento completo innecesariamente (más rápido en lecturas)
+  const usuarioActual = await User.findOne({ numero: sender }).lean();
 
   if (!comandosLibres.includes(cmdName) && costo > 0) {
     if (!usuarioActual) {
