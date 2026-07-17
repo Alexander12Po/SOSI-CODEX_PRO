@@ -5,7 +5,6 @@ import { botConfig } from './config.js';
 import { obtenerCosto } from './costos.js';
 import { connectDB } from './database.js';
 import User from './models/User.js';
-import { preguntarIA } from './groq.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,15 +70,7 @@ export async function handler(sock, m) {
     type === 'imageMessage' ? (msg.message.imageMessage.caption || '') :
     '';
 
-  if (!body) return;
-
-  if (!body.startsWith(botConfig.prefix)) {
-    const respuestaIA = await preguntarIA(body);
-    if (respuestaIA) {
-      await sock.sendMessage(from, { text: respuestaIA }, { quoted: msg });
-    }
-    return;
-  }
+  if (!body || !body.startsWith(botConfig.prefix)) return;
 
   const args = body.slice(botConfig.prefix.length).trim().split(/ +/);
   const cmdName = args.shift().toLowerCase();
@@ -89,10 +80,14 @@ export async function handler(sock, m) {
   const senderRaw = msg.key.participantAlt || msg.key.participant || msg.key.remoteJidAlt || msg.key.remoteJid;
   const sender = normalizarJid(senderRaw);
 
+  // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
 
+  // Lanzamos la reacción sin esperarla (no bloquea el flujo)
   sock.sendMessage(from, { react: { text: '📩', key: msg.key } }).catch(() => {});
 
+  // --- VERIFICAR REGISTRO Y CRÉDITOS (sin cobrar todavía) ---
+  // .lean() evita que Mongoose hidrate un documento completo innecesariamente (más rápido en lecturas)
   const usuarioActual = await User.findOne({ numero: sender }).lean();
 
   if (!comandosLibres.includes(cmdName) && costo > 0) {
@@ -128,14 +123,17 @@ y precios utiliza:
       }, { quoted: msg });
     }
   } else if (!comandosLibres.includes(cmdName) && costo === 0) {
+    // Comando gratis (ej: vv) pero sigue requiriendo registro
     if (!usuarioActual) {
       return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
     }
   }
+  // -------------------------------------
 
   try {
     const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
 
+    // Solo cobrar si el plugin no devolvió explícitamente "false" (consulta fallida)
     const consultaExitosa = resultado !== false;
 
     if (!comandosLibres.includes(cmdName) && costo > 0 && consultaExitosa) {
