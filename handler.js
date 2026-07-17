@@ -5,6 +5,7 @@ import { botConfig } from './config.js';
 import { obtenerCosto } from './costos.js';
 import { connectDB } from './database.js';
 import User from './models/User.js';
+import { preguntarIA } from './groq.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,7 +71,15 @@ export async function handler(sock, m) {
     type === 'imageMessage' ? (msg.message.imageMessage.caption || '') :
     '';
 
-  if (!body || !body.startsWith(botConfig.prefix)) return;
+  if (!body) return;
+
+  if (!body.startsWith(botConfig.prefix)) {
+    const respuestaIA = await preguntarIA(body);
+    if (respuestaIA) {
+      await sock.sendMessage(from, { text: respuestaIA }, { quoted: msg });
+    }
+    return;
+  }
 
   const args = body.slice(botConfig.prefix.length).trim().split(/ +/);
   const cmdName = args.shift().toLowerCase();
@@ -96,56 +105,4 @@ export async function handler(sock, m) {
     }
 
     if (usuarioActual.creditos < costo) {
-      return await sock.sendMessage(from, {
-        text: `╭══════════════════════╮
-│ ⚠️ SOSI CODEX ALERTA │
-╰══════════════════════╯
-
-🚫 *Créditos agotados*
-
-Hola, tu saldo de créditos ya no es
-suficiente para realizar más consultas.
-
-╭──────── 💎 RECARGA ────────╮
-│ 💳 Recarga tus créditos:
-│ 📲 +51 924 894 999
-╰────────────────────────────╯
-
-🛒 Para ver los paquetes disponibles
-y precios utiliza:
-
-➜ *.comprar*
-
-━━━━━━━━━━━━━━━━━━
-
-⚡ Recarga y continúa usando
-🤖 *SOSI CODEX* sin límites.`
-      }, { quoted: msg });
-    }
-  } else if (!comandosLibres.includes(cmdName) && costo === 0) {
-    // Comando gratis (ej: vv) pero sigue requiriendo registro
-    if (!usuarioActual) {
-      return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
-    }
-  }
-  // -------------------------------------
-
-  try {
-    const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
-
-    // Solo cobrar si el plugin no devolvió explícitamente "false" (consulta fallida)
-    const consultaExitosa = resultado !== false;
-
-    if (!comandosLibres.includes(cmdName) && costo > 0 && consultaExitosa) {
-      const usuarioActualizado = await User.findOneAndUpdate(
-        { numero: sender },
-        { $inc: { creditos: -costo } },
-        { returnDocument: 'after' }
-      );
-      await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usuarioActualizado.creditos}*` });
-    }
-  } catch (err) {
-    console.error(`Error ejecutando "${cmdName}":`, err);
-    await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
-  }
-}
+      return await sock.sendMessage(fro
