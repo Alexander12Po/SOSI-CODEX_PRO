@@ -89,14 +89,10 @@ export async function handler(sock, m) {
   const senderRaw = msg.key.participantAlt || msg.key.participant || msg.key.remoteJidAlt || msg.key.remoteJid;
   const sender = normalizarJid(senderRaw);
 
-  // Costo real del comando (viene de costos.js; si no está registrado ahí, usa 2 por defecto)
   const costo = obtenerCosto(cmdName, typeof plugin.cost === 'number' ? plugin.cost : 2);
 
-  // Lanzamos la reacción sin esperarla (no bloquea el flujo)
   sock.sendMessage(from, { react: { text: '📩', key: msg.key } }).catch(() => {});
 
-  // --- VERIFICAR REGISTRO Y CRÉDITOS (sin cobrar todavía) ---
-  // .lean() evita que Mongoose hidrate un documento completo innecesariamente (más rápido en lecturas)
   const usuarioActual = await User.findOne({ numero: sender }).lean();
 
   if (!comandosLibres.includes(cmdName) && costo > 0) {
@@ -105,4 +101,53 @@ export async function handler(sock, m) {
     }
 
     if (usuarioActual.creditos < costo) {
-      return await sock.sendMessage(fro
+      return await sock.sendMessage(from, {
+        text: `╭══════════════════════╮
+│ ⚠️ SOSI CODEX ALERTA │
+╰══════════════════════╯
+
+🚫 *Créditos agotados*
+
+Hola, tu saldo de créditos ya no es
+suficiente para realizar más consultas.
+
+╭──────── 💎 RECARGA ────────╮
+│ 💳 Recarga tus créditos:
+│ 📲 +51 924 894 999
+╰────────────────────────────╯
+
+🛒 Para ver los paquetes disponibles
+y precios utiliza:
+
+➜ *.comprar*
+
+━━━━━━━━━━━━━━━━━━
+
+⚡ Recarga y continúa usando
+🤖 *SOSI CODEX* sin límites.`
+      }, { quoted: msg });
+    }
+  } else if (!comandosLibres.includes(cmdName) && costo === 0) {
+    if (!usuarioActual) {
+      return await sock.sendMessage(from, { text: '❌ No estás registrado. Usa `.registrar nombre|contraseña` para comenzar.' }, { quoted: msg });
+    }
+  }
+
+  try {
+    const resultado = await plugin.exec({ sock, msg, from, args, sender, body });
+
+    const consultaExitosa = resultado !== false;
+
+    if (!comandosLibres.includes(cmdName) && costo > 0 && consultaExitosa) {
+      const usuarioActualizado = await User.findOneAndUpdate(
+        { numero: sender },
+        { $inc: { creditos: -costo } },
+        { returnDocument: 'after' }
+      );
+      await sock.sendMessage(from, { text: `💳 Se descontaron *${costo}* crédito(s). Créditos restantes: *${usuarioActualizado.creditos}*` });
+    }
+  } catch (err) {
+    console.error(`Error ejecutando "${cmdName}":`, err);
+    await sock.sendMessage(from, { text: '❌ Ocurrió un error al ejecutar el comando.' }, { quoted: msg });
+  }
+}
