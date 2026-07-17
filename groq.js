@@ -9,7 +9,7 @@ export async function preguntarIA(mensaje) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer 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`
+        Authorization: `Bearer ${GROQ_API_KEY}`
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
