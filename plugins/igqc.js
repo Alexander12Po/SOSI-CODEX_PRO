@@ -5,10 +5,11 @@
 */
 
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
-import { writeFile, mkdir, readFile } from 'node:fs/promises';
+import { writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -18,9 +19,9 @@ const FONTS = [
 const BG_URL = "https://cdn.jsdelivr.net/gh/Ditzzx-vibecoder/Assets@main/Image/igqc.png";
 const CANVAS_SIZE = { width: 878, height: 1791 };
 
-const ASSETS_DIR = join(__dirname, 'assets', 'igqc');
+const ASSETS_DIR = join(__dirname, '..', 'assets', 'igqc');
 const FONTS_DIR = join(ASSETS_DIR, 'fonts');
-const OUTPUT_DIR = join(__dirname, 'tmp');
+const OUTPUT_DIR = join(__dirname, '..', 'tmp');
 
 async function download(url) {
   const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
@@ -213,43 +214,49 @@ async function renderIgqc({ text, imgBuffer, timeStr }) {
   return canvas.encode('png');
 }
 
-const handler = async (m, { sock, conn, text, quoted }) => {
-  const client = sock || conn;
+const plugin = {
+  command: ['igqc'],
+  cost: 2,
 
-  const msgText = text || quoted?.text || "";
-  if (!msgText && !quoted?.mimetype?.startsWith?.('image')) {
-    return client.sendMessage(m.chat, {
-      text: "Manda un texto o responde (quote) a una imagen.\n\n*Ejemplo:* .igqc Hola mundo 🌹"
-    }, { quoted: m });
-  }
+  async exec({ sock, msg, from, args }) {
+    const msgText = args.join(' ');
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+    const quotedMsg = contextInfo?.quotedMessage;
+    const quotedImg = quotedMsg?.imageMessage;
 
-  await client.sendMessage(m.chat, { react: { text: "⏳", key: m.key } });
-
-  try {
-    let imgBuffer = null;
-    if (quoted && typeof quoted.download === 'function') {
-      // Framework Baileys/WA-bot: mensajes citados suelen exponer .download()
-      try { imgBuffer = await quoted.download(); } catch (_) { imgBuffer = null; }
+    if (!msgText && !quotedImg) {
+      await sock.sendMessage(from, {
+        text: "Manda un texto o responde (quote) a una imagen.\n\n*Ejemplo:* .igqc Hola mundo 🌹"
+      }, { quoted: msg });
+      return false;
     }
 
-    const now = new Date();
-    const timeStr = now.toLocaleDateString('es-PE', { weekday: 'short' }).toUpperCase() + ' ' +
-      now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false }).replace(':', '.');
+    await sock.sendMessage(from, { react: { text: "⏳", key: msg.key } });
 
-    const png = await renderIgqc({ text: msgText, imgBuffer, timeStr });
+    try {
+      let imgBuffer = null;
+      if (quotedImg) {
+        const stream = await downloadContentFromMessage(quotedImg, 'image');
+        const chunks = [];
+        for await (const chunk of stream) chunks.push(chunk);
+        imgBuffer = Buffer.concat(chunks);
+      }
 
-    await client.sendMessage(m.chat, { react: { text: "✅", key: m.key } });
-    await client.sendMessage(m.chat, { image: png, caption: "" }, { quoted: m });
-  } catch (error) {
-    console.error("IGQC Plugin Error:", error);
-    await client.sendMessage(m.chat, { react: { text: "❌", key: m.key } });
-    client.sendMessage(m.chat, { text: "Error generando la tarjeta." }, { quoted: m });
+      const now = new Date();
+      const timeStr = now.toLocaleDateString('es-PE', { weekday: 'short' }).toUpperCase() + ' ' +
+        now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false }).replace(':', '.');
+
+      const png = await renderIgqc({ text: msgText, imgBuffer, timeStr });
+
+      await sock.sendMessage(from, { react: { text: "✅", key: msg.key } });
+      await sock.sendMessage(from, { image: png, caption: "" }, { quoted: msg });
+    } catch (error) {
+      console.error("IGQC Plugin Error:", error);
+      await sock.sendMessage(from, { react: { text: "❌", key: msg.key } });
+      await sock.sendMessage(from, { text: "Error generando la tarjeta." }, { quoted: msg });
+      return false;
+    }
   }
 };
 
-handler.command = ["igqc"];
-handler.owner = false;
-handler.noJadiBot = true;
-handler.group = false;
-
-export default handler;
+export default plugin;
