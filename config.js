@@ -4,7 +4,7 @@ export const botConfig = {
   ownerNumber: '51924894999', // 👈 tu número con código de país, sin +
   menuImage: './media/menu.png',
   cmdsImage: './media/cmds.png',
-  sosiImage: './media/cmds.png',
+  sosiImage: './media/sosi.png',
   loginMethod: 'qr', // 👈 'qr' o 'pairing'
   admins: [
     '51924894999@s.whatsapp.net',
