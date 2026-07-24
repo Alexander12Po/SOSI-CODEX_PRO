@@ -1,4 +1,3 @@
-// plugins/ubicacion.js
 import axios from 'axios';
 
 export default {
@@ -54,6 +53,3 @@ export default {
     }
   }
 };
-
-
-Funciona verdad
