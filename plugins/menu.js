@@ -32,6 +32,7 @@ const categoriaPorComando = {
   info: 'GENERAL',
   ping: 'GENERAL',
   cmds: 'ACCESO_RAPIDO',
+  sosi: 'A_MAS_COMANDOS',
 
   // Los comandos de consultas ya no se listan uno por uno en el .menu:
   // ahora se agrupan y se ven todos juntos con el comando .cmds
@@ -77,6 +78,7 @@ const emojiComando = {
   info: '🤖',
   ping: '🏓',
   cmds: '🔎',
+  sosi: '🚧',
   dni: '🪪',
   nm: '👤',
   telp: '📱',
