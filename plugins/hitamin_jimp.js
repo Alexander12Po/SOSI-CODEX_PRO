@@ -35,21 +35,48 @@ export default {
 
       const imagen = await Jimp.read(inputPath);
 
-      // Color marrón oscuro objetivo y porcentaje de mezcla
+      // Convierte RGB a HSL para poder filtrar por tono de piel
+      function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+          h = s = 0;
+        } else {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+          }
+          h /= 6;
+        }
+        return [h * 360, s * 100, l * 100];
+      }
+
       const tinte = { r: 90, g: 60, b: 40 };
-      const mezcla = 0.35; // 35%
+      const mezcla = 0.55; // más fuerte porque solo afecta la piel
 
       imagen.scan(0, 0, imagen.bitmap.width, imagen.bitmap.height, function (x, y, idx) {
         const buf = this.bitmap.data;
-        // Baja el brillo general (multiplica canales por 0.6)
-        const r = buf[idx + 0] * 0.6;
-        const g = buf[idx + 1] * 0.6;
-        const b = buf[idx + 2] * 0.6;
+        const r = buf[idx + 0];
+        const g = buf[idx + 1];
+        const b = buf[idx + 2];
 
-        // Mezcla hacia el tono marrón oscuro
-        buf[idx + 0] = r * (1 - mezcla) + tinte.r * mezcla;
-        buf[idx + 1] = g * (1 - mezcla) + tinte.g * mezcla;
-        buf[idx + 2] = b * (1 - mezcla) + tinte.b * mezcla;
+        const [h, s, l] = rgbToHsl(r, g, b);
+
+        // Rango típico de tonos de piel anime: matiz cálido (naranja/melocotón),
+        // saturación media-baja, luminosidad media-alta.
+        // Ajusta estos rangos si detecta de más o de menos.
+        const esPiel = h >= 5 && h <= 45 && s >= 10 && s <= 60 && l >= 45 && l <= 95;
+
+        if (esPiel) {
+          buf[idx + 0] = r * (1 - mezcla) + tinte.r * mezcla;
+          buf[idx + 1] = g * (1 - mezcla) + tinte.g * mezcla;
+          buf[idx + 2] = b * (1 - mezcla) + tinte.b * mezcla;
+        }
       });
 
       await imagen.write(outputPath);
