@@ -111,9 +111,11 @@ export default {
         return out;
       }
 
-      // Cierre = dilatar 2 veces luego erosionar 2 veces (rellena huecos pequeños sin agrandar el borde)
-      mask = dilate(dilate(mask));
-      mask = erode(erode(mask));
+      // Cierre = dilatar N veces luego erosionar N veces (rellena huecos más grandes,
+      // como los mechones de pelo que cruzan la frente, sin agrandar el borde real)
+      const RADIO_CIERRE = 6;
+      for (let i = 0; i < RADIO_CIERRE; i++) mask = dilate(mask);
+      for (let i = 0; i < RADIO_CIERRE; i++) mask = erode(mask);
 
       // --- Paso 3: aplicar el tinte solo donde la máscara final dice "piel" ---
       const tinte = { r: 90, g: 60, b: 40 };
