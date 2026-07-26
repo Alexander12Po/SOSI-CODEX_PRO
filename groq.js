@@ -28,16 +28,20 @@ export async function desactivarIA(jid) {
 
 export async function preguntarIA(jid, mensaje) {
   try {
-    let chat = await ChatIA.findOne({ jid });
-    if (!chat) {
-      chat = new ChatIA({ jid, activo: false, historial: [] });
-    }
+    // Guarda el mensaje del usuario de forma atómica
+    await ChatIA.findOneAndUpdate(
+      { jid },
+      { $push: { historial: { role: 'user', content: mensaje } }, $setOnInsert: { activo: false } },
+      { upsert: true }
+    );
 
-    chat.historial.push({ role: 'user', content: mensaje });
+    // Lee el historial actualizado
+    const chatActual = await ChatIA.findOne({ jid }).lean();
+    const historial = chatActual?.historial || [];
 
     const mensajesParaAPI = [
       { role: 'system', content: 'Eres un amigo cercano charlando por WhatsApp. Responde corto, natural, casual y en español, como lo haría una persona real en un chat. No te presentes como IA a menos que te pregunten directamente.' },
-      ...chat.historial.slice(-MAX_HISTORIAL).map(h => ({ role: h.role, content: h.content }))
+      ...historial.slice(-MAX_HISTORIAL).map(h => ({ role: h.role, content: h.content }))
     ];
 
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -62,11 +66,18 @@ export async function preguntarIA(jid, mensaje) {
     const respuesta = data.choices?.[0]?.message?.content?.trim() || null;
 
     if (respuesta) {
-      chat.historial.push({ role: 'assistant', content: respuesta });
-      if (chat.historial.length > MAX_HISTORIAL * 2) {
-        chat.historial = chat.historial.slice(-MAX_HISTORIAL * 2);
+      // Guarda la respuesta de forma atómica
+      await ChatIA.findOneAndUpdate(
+        { jid },
+        { $push: { historial: { role: 'assistant', content: respuesta } } }
+      );
+
+      // Recorta el historial si se pasa del límite (operación separada y segura)
+      const chatFinal = await ChatIA.findOne({ jid }).lean();
+      if (chatFinal?.historial?.length > MAX_HISTORIAL * 2) {
+        const recortado = chatFinal.historial.slice(-MAX_HISTORIAL * 2);
+        await ChatIA.findOneAndUpdate({ jid }, { historial: recortado });
       }
-      await chat.save();
     }
 
     return respuesta;
