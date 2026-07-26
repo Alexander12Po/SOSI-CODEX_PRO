@@ -6,6 +6,7 @@ import { obtenerCosto } from './costos.js';
 import { connectDB } from './database.js';
 import User from './models/User.js';
 import { preguntarIA, chatActivo } from './groq.js';
+import { transcribirAudio, generarAudioRespuesta } from './audio.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +64,34 @@ export async function handler(sock, m) {
 
   const from = msg.key.remoteJid;
   const type = Object.keys(msg.message)[0];
+
+  // --- Manejo de mensajes de audio ---
+  if (type === 'audioMessage') {
+    const iaEstaActiva = await chatActivo(from);
+    if (!iaEstaActiva) return;
+
+    const texto = await transcribirAudio(msg);
+    if (!texto) return;
+
+    const respuesta = await preguntarIA(from, texto);
+    if (!respuesta) return;
+
+    const audioPath = await generarAudioRespuesta(respuesta);
+    if (!audioPath) {
+      await sock.sendMessage(from, { text: respuesta }, { quoted: msg });
+      return;
+    }
+
+    await sock.sendMessage(from, {
+      audio: fs.readFileSync(audioPath),
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true
+    }, { quoted: msg });
+
+    fs.unlinkSync(audioPath);
+    return;
+  }
+
   const body =
     type === 'conversation' ? msg.message.conversation :
     type === 'extendedTextMessage' ? msg.message.extendedTextMessage.text :
