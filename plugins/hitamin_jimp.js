@@ -35,15 +35,24 @@ export default {
 
       const imagen = await Jimp.read(inputPath);
 
-      // Baja brillo, sube contraste y aplica tinte oscuro/marrón sobre toda la imagen
-      imagen
-        .brightness(-0.45)
-        .contrast(0.1)
-        .color([
-          { apply: 'mix', params: ['#5A3C28', 35] } // mezcla 35% con un marrón oscuro
-        ]);
+      // Color marrón oscuro objetivo y porcentaje de mezcla
+      const tinte = { r: 90, g: 60, b: 40 };
+      const mezcla = 0.35; // 35%
 
-      await imagen.writeAsync(outputPath);
+      imagen.scan(0, 0, imagen.bitmap.width, imagen.bitmap.height, function (x, y, idx) {
+        const buf = this.bitmap.data;
+        // Baja el brillo general (multiplica canales por 0.6)
+        const r = buf[idx + 0] * 0.6;
+        const g = buf[idx + 1] * 0.6;
+        const b = buf[idx + 2] * 0.6;
+
+        // Mezcla hacia el tono marrón oscuro
+        buf[idx + 0] = r * (1 - mezcla) + tinte.r * mezcla;
+        buf[idx + 1] = g * (1 - mezcla) + tinte.g * mezcla;
+        buf[idx + 2] = b * (1 - mezcla) + tinte.b * mezcla;
+      });
+
+      await imagen.write(outputPath);
 
       await sock.sendMessage(from, {
         image: fs.readFileSync(outputPath),
