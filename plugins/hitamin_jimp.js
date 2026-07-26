@@ -34,6 +34,8 @@ export default {
       fs.writeFileSync(inputPath, buffer);
 
       const imagen = await Jimp.read(inputPath);
+      const { width, height } = imagen.bitmap;
+      const buf = imagen.bitmap.data;
 
       // Convierte RGB a HSL para poder filtrar por tono de piel
       function rgbToHsl(r, g, b) {
@@ -56,28 +58,76 @@ export default {
         return [h * 360, s * 100, l * 100];
       }
 
-      const tinte = { r: 90, g: 60, b: 40 };
-      const mezcla = 0.55; // más fuerte porque solo afecta la piel
-
-      imagen.scan(0, 0, imagen.bitmap.width, imagen.bitmap.height, function (x, y, idx) {
-        const buf = this.bitmap.data;
-        const r = buf[idx + 0];
-        const g = buf[idx + 1];
-        const b = buf[idx + 2];
-
-        const [h, s, l] = rgbToHsl(r, g, b);
-
-        // Rango típico de tonos de piel anime: matiz cálido (naranja/melocotón),
-        // saturación media-baja, luminosidad media-alta.
-        // Ajusta estos rangos si detecta de más o de menos.
-        const esPiel = h >= 5 && h <= 45 && s >= 10 && s <= 60 && l >= 45 && l <= 95;
-
-        if (esPiel) {
-          buf[idx + 0] = r * (1 - mezcla) + tinte.r * mezcla;
-          buf[idx + 1] = g * (1 - mezcla) + tinte.g * mezcla;
-          buf[idx + 2] = b * (1 - mezcla) + tinte.b * mezcla;
+      // --- Paso 1: construir máscara booleana de "es piel" ---
+      let mask = new Uint8Array(width * height);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          const [h, s, l] = rgbToHsl(buf[idx], buf[idx + 1], buf[idx + 2]);
+          // Rango amplio: matiz cálido, cualquier saturación baja-media, luminosidad media-alta
+          const esPiel = h >= 0 && h <= 50 && s <= 70 && l >= 40 && l <= 97;
+          mask[y * width + x] = esPiel ? 1 : 0;
         }
-      });
+      }
+
+      // --- Paso 2: cierre morfológico (rellena huecos rodeados de piel) ---
+      function dilate(src) {
+        const out = new Uint8Array(src.length);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            let val = 0;
+            for (let dy = -1; dy <= 1 && !val; dy++) {
+              for (let dx = -1; dx <= 1 && !val; dx++) {
+                const ny = y + dy, nx = x + dx;
+                if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                  if (src[ny * width + nx]) val = 1;
+                }
+              }
+            }
+            out[y * width + x] = val;
+          }
+        }
+        return out;
+      }
+
+      function erode(src) {
+        const out = new Uint8Array(src.length);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            let val = 1;
+            for (let dy = -1; dy <= 1 && val; dy++) {
+              for (let dx = -1; dx <= 1 && val; dx++) {
+                const ny = y + dy, nx = x + dx;
+                if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+                  if (!src[ny * width + nx]) val = 0;
+                } else {
+                  val = 0;
+                }
+              }
+            }
+            out[y * width + x] = val;
+          }
+        }
+        return out;
+      }
+
+      // Cierre = dilatar 2 veces luego erosionar 2 veces (rellena huecos pequeños sin agrandar el borde)
+      mask = dilate(dilate(mask));
+      mask = erode(erode(mask));
+
+      // --- Paso 3: aplicar el tinte solo donde la máscara final dice "piel" ---
+      const tinte = { r: 90, g: 60, b: 40 };
+      const mezcla = 0.55;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (!mask[y * width + x]) continue;
+          const idx = (y * width + x) * 4;
+          buf[idx + 0] = buf[idx + 0] * (1 - mezcla) + tinte.r * mezcla;
+          buf[idx + 1] = buf[idx + 1] * (1 - mezcla) + tinte.g * mezcla;
+          buf[idx + 2] = buf[idx + 2] * (1 - mezcla) + tinte.b * mezcla;
+        }
+      }
 
       await imagen.write(outputPath);
 
