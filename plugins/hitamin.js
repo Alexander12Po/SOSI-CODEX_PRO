@@ -9,7 +9,7 @@ const tmpDir = path.join(__dirname, '..', 'tmp');
 if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
 export default {
-  command: 'hitamin',
+  command: 'hitamin', 'negro',
   cost: 1,
   async exec({ sock, msg, from }) {
     // Busca la imagen citada (la persona responde a una foto con .hitamin)
