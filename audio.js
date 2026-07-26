@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 import { downloadContentFromMessage } from '@whiskeysockets/baileys';
 import { exec } from 'child_process';
 import util from 'util';
-import FormData from 'form-data';
 import 'dotenv/config';
 
 const execP = util.promisify(exec);
@@ -21,17 +20,17 @@ export async function transcribirAudio(msg) {
     const inputPath = path.join(tmpDir, `in_${Date.now()}.ogg`);
     fs.writeFileSync(inputPath, buffer);
 
+    const fileBuffer = fs.readFileSync(inputPath);
+    const blob = new Blob([fileBuffer], { type: 'audio/ogg' });
+
     const form = new FormData();
-    form.append('file', fs.createReadStream(inputPath));
+    form.append('file', blob, 'audio.ogg');
     form.append('model', 'whisper-large-v3');
     form.append('language', 'es');
 
     const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-        ...form.getHeaders()
-      },
+      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
       body: form
     });
 
