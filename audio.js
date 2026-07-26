@@ -55,7 +55,7 @@ export async function generarAudioRespuesta(texto) {
     const oggPath = mp3Path.replace('.mp3', '.ogg');
     const textoSeguro = texto.replace(/"/g, '\\"').replace(/\$/g, '\\$');
 
-    await execP(`edge-tts --voice "es-PE-AlexNeural" --text "${textoSeguro}" --write-media "${mp3Path}"`);
+    await execP(`edge-tts --voice "es-MX-JorgeNeural" --text "${textoSeguro}" --write-media "${mp3Path}"`);
     await execP(`ffmpeg -y -i "${mp3Path}" -c:a libopus "${oggPath}"`);
 
     if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
