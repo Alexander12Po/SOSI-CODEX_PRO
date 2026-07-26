@@ -51,15 +51,14 @@ export async function transcribirAudio(msg) {
 
 export async function generarAudioRespuesta(texto) {
   try {
-    const wavPath = path.join(tmpDir, `out_${Date.now()}.wav`);
-    const oggPath = wavPath.replace('.wav', '.ogg');
+    const mp3Path = path.join(tmpDir, `out_${Date.now()}.mp3`);
+    const oggPath = mp3Path.replace('.mp3', '.ogg');
     const textoSeguro = texto.replace(/"/g, '\\"').replace(/\$/g, '\\$');
 
-    const scriptPath = path.join(__dirname, 'tts.py');
-    await execP(`python3 "${scriptPath}" "${textoSeguro}" "${wavPath}"`);
-    await execP(`ffmpeg -y -i "${wavPath}" -c:a libopus "${oggPath}"`);
+    await execP(`edge-tts --voice "es-PE-CamilaNeural" --text "${textoSeguro}" --write-media "${mp3Path}"`);
+    await execP(`ffmpeg -y -i "${mp3Path}" -c:a libopus "${oggPath}"`);
 
-    if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+    if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
     return oggPath;
   } catch (err) {
     console.error('Error en generarAudioRespuesta:', err.message);
